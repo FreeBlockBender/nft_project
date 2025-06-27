@@ -1,13 +1,21 @@
-# Python
+# === Python ===
 __pycache__/
+*.py[cod]
+*.pyo
+*.pyd
 *.pyc
 
-# Database
-nft_data.db
-
-# Docker
-*.tar
-*.gz
-
-# Environment
+# === Env files ===
 .env
+
+# === SQLite ===
+*.sqlite3
+
+# === VSCode / IDE / OS files ===
+.vscode/
+.DS_Store
+Thumbs.db
+
+# === Data folder exclusions ===
+/data/*.json
+/data/nft_historical_data/*.csv
