@@ -1,3 +1,130 @@
-# NFT Golden Cross Detection
+# NFT Golden Cross Signal Bot
 
-This project detects golden cross events for NFT floor prices using AWS Lambda, SQLite, and Telegram notifications.
+This project identifies **Golden Cross** patterns in NFT collection price data and sends alerts via a private Telegram bot. It is built in **Python** with an **SQLite** database for data storage and supports modular execution via scripts.
+
+---
+
+## 📊 What is a Golden Cross?
+
+A **Golden Cross** is a bullish technical analysis pattern that occurs when a short-term moving average (e.g., 50-day MA) crosses above a long-term moving average (e.g., 200-day MA).  
+In this project, the pattern is applied to price data from NFT collections.
+
+---
+
+## 📁 Project Structure
+
+✅ Versioned
+⛔️ Not Versioned
+
+```bash
+nft_project/
+│   .env ⛔️ Environment variables               
+│   .gitignore ✅
+│   main.py ✅ App entry point (currently unused)
+│   nft_data.sqlite3 ⛔️ Database
+│   README.md ✅
+│
+├───app ✅
+│   │   config.py ✅ Loads and returns all configuration variables from the .env file.
+│   │   database.py ✅ Initializes the database and tables if needed, and returns an active connection.
+│   │   __init__.py ✅
+│   │
+│   ├───data_import ✅
+│   │   │   import_api.py ✅ Imports NFT data via API, stores it in the database, and saves the response.
+│   │   │   import_collections.py ✅ Detects and imports updated collection metadata since the previous day.
+│   │   │   import_csv.py ✅ Imports historical floor data from CSV files.
+│   │   │   __init__.py ✅
+│   │
+│   ├───utils ✅
+│   │   │   helpers.py ✅ A set of generic helper functions.
+│   │   │   logging_config.py ✅ Global logging configuration with timestamps, reusable across all files.
+│   │   │   moving_average.py ✅ Implements a function to calculate the SMA and verify continuity of days.
+│   │   │   telegram_bot.py ✅ Implements the Telegram bot and its commands.
+│   │   │   telegram_msg_templates.py ✅ Centralizes Telegram message templates.
+│   │   │   telegram_notifier.py ✅ Used to send a Telegram message to the specified chat_id.
+│   │   │   __init__.py ✅
+│   
+│
+├───data ✅
+│   │
+│   └───nft_historical_data ✅ Repository for CSV files containing historical floor prices.
+│
+├───doc ✅
+│       Deploy NFT project.docx ✅ Project technical specification (firs draft).
+│
+├───scripts ✅
+│   │   create_database.py ✅ Script to initialize NFT database tables.
+│   │   import_api_data.py ✅ Script to import NFT historical data via API.
+│   │   import_collections_data.py ✅ Script to import NFT metadata.
+│   │   import_csv_files.py ✅ Script to import CSV historical data.
+│   │   verify_database.py ✅ Script to verify database tables.
+│
+└───tests ✅
+        __init__.py ✅
+```
+
+✍ None of the pycache directories are included in version control, for obvious reasons.
+
+---
+
+## 🤖 Telgram bot commands
+
+| Command               | Description                                                      |
+|-----------------------|------------------------------------------------------------------|
+| `check_daily_insert`  | Verifies the number of today's inserts in `historical_nft_data`. |
+| `slug_list_by_prefix` | Retrieves collection slugs that start with a specific prefix.     |
+| `slug_list_by_chain`  | Lists slugs filtered by the related blockchain.                  |
+| `slug_list_by_category` | Finds slugs organized by category.                             |
+| `meta`                | Fetches detailed metadata for an NFT collection.                 |
+| `ma_native`           | Displays moving averages for the collection in native currency.  |
+| `ma_usd`             | Displays moving averages for the collection in USD.              |
+
+---
+
+## 🔧 Git Workflow Guide
+
+All development must be done on the `develop` branch.  
+The `master` branch should only contain stable, production-ready code.
+
+### 📥 Clone the Repository
+
+```bash
+git clone https://github.com/FreeBlockBender/nft_project.git
+cd nft-golden-cross-bot
+```
+
+### 🔄 Update the Local Repository
+```bash
+git pull origin develop
+```
+
+### 🌿 Switch to the Develop Branch
+```bash
+git checkout develop
+```
+
+### 🧑‍💻 Create a New Feature Branch
+```bash
+git checkout -b feature/your-feature-name
+```
+
+After implementing your changes:
+```bash
+git add .
+git commit -m "Describe your changes here"
+git push origin feature/your-feature-name
+```
+
+### 🔀 Open a Pull Request
+
+- Push your changes to your feature branch.
+- Go to the GitHub repository.
+- Open a *Pull Request* from `feature/your-feature-name` → `develop`.
+- Once changes are reviewed and tested, a second *Pull Request* should be opened from `develop` → `master` to deploy to production.
+
+✅ Summary
+
+- Develop only on develop
+- Never commit directly to master
+- Use feature branches for clarity and isolation
+- Pull Request flow: feature → develop → master
