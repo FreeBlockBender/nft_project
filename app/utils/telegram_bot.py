@@ -1,6 +1,9 @@
 import os
 import logging
 import sqlite3
+import matplotlib.pyplot as plt
+import io
+from datetime import datetime
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from telegram import (
