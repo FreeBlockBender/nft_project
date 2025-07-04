@@ -53,6 +53,93 @@ logger = logging.getLogger(__name__)
 def is_authorized(user_id: int) -> bool:
     return user_id in ALLOWED_TELEGRAM_IDS
 
+# ------- Funzione per generare il grafico dei floor price e SMA -------
+def create_nft_chart(slug: str, data: list, field: str, chain: str):
+    """
+    Genera un grafico dei floor price e delle medie mobili per una collezione NFT.
+    
+    Args:
+        slug (str): Slug della collezione NFT.
+        data (list): Lista di tuple (data, floor_price) dalla tabella historical_nft_data.
+        field (str): Campo da plottare ('floor_native' o 'floor_usd').
+        chain (str): Chain della collezione (per il titolo e l'etichetta).
+    
+    Returns:
+        BytesIO: Buffer contenente l'immagine del grafico in formato PNG.
+    """
+    if not data:
+        return None
+    
+    # Estrai date e valori
+    dates = [datetime.strptime(row[0], "%Y-%m-%d") for row in data]
+    values = [row[1] for row in data if row[1] is not None and str(row[1]).replace('.', '').replace('-', '').isdigit()]
+    if not values:
+        return None
+    
+    # Crea una serie temporale continua (interpolazione lineare per gap)
+    from scipy.interpolate import interp1d
+    import numpy as np
+    
+    # Converti date in timestamp numerici per l'interpolazione
+    date_nums = np.array([d.timestamp() for d in dates])
+    value_nums = np.array(values, dtype=np.float64)
+    
+    # Crea una griglia temporale continua
+    date_min = min(dates)
+    date_max = max(dates)
+    date_range = np.linspace(date_min.timestamp(), date_max.timestamp(), len(dates) * 10)
+    interp_func = interp1d(date_nums, value_nums, kind='linear', fill_value="extrapolate")
+    interp_values = interp_func(date_range)
+    interp_dates = [datetime.fromtimestamp(ts) for ts in date_range]
+    
+    # Calcola le medie mobili con interpolazione
+    date_value_list = [(d.strftime("%Y-%m-%d"), float(v) if v is not None and str(v).replace('.', '').replace('-', '').isdigit() else np.nan) for d, v in zip(dates, [row[1] for row in data])]
+    end_date = date_max.strftime("%Y-%m-%d")
+    periods = [
+        (20, 1, "SMA20"),
+        (50, 3, "SMA50"),
+        (100, 5, "SMA100"),
+        (200, 10, "SMA200"),
+    ]
+    sma_data = {}
+    for period, threshold, label in periods:
+        sma_values = []
+        for i in range(len(interp_dates)):
+            window_end = interp_dates[i].strftime("%Y-%m-%d")
+            sma = calculate_sma(date_value_list, period, window_end, missing_threshold=threshold)
+            sma_values.append(sma if not np.isnan(sma) else np.nan)
+        # Interpolazione lineare per SMA
+        sma_nums = np.array(sma_values)
+        sma_interp = interp1d(np.arange(len(sma_nums)), sma_nums, kind='linear', fill_value="extrapolate")
+        sma_data[label] = sma_interp(np.linspace(0, len(sma_nums)-1, len(interp_dates)))
+        # Debug: verifica i valori SMA
+        print(f"{label} values: {sma_values[:10]}...")  # Stampa i primi 10 valori per debug
+    
+    # Crea il grafico
+    plt.figure(figsize=(12, 6))
+    plt.plot(interp_dates, interp_values, label=f"Floor Price ({field})", color="blue", linewidth=2)
+    
+    # Plot delle medie mobili
+    colors = {"SMA20": "orange", "SMA50": "green", "SMA100": "red", "SMA200": "purple"}
+    for label, sma_values in sma_data.items():
+        plt.plot(interp_dates, sma_values, label=label, color=colors[label], linestyle="-", linewidth=1.5)
+    
+    # Personalizza il grafico
+    currency_label = chain.upper() if field == "native" else "USD"
+    plt.title(f"Floor Price e Medie Mobili per {slug} ({chain}) - Ultimi 200 giorni")
+    plt.xlabel("Data")
+    plt.ylabel(f"Prezzo ({currency_label})")
+    plt.grid(True)
+    plt.legend()
+    plt.xticks(rotation=45)
+    
+    # Salva il grafico in memoria
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format="png", bbox_inches="tight")
+    buffer.seek(0)
+    plt.close()
+    return buffer
+
 async def access_denied(update: Update):
     if update.message:
         await update.message.reply_text("Access denied", reply_markup=ReplyKeyboardRemove())
@@ -137,6 +224,89 @@ async def paginated_list_handler(
         await update.message.reply_text(text, reply_markup=reply_markup or ReplyKeyboardRemove())
     elif update.callback_query:
         await update.callback_query.edit_message_text(text, reply_markup=reply_markup or None)
+
+# ------- Handler per /nft_chart -------
+async def nft_chart(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Handler per il comando /nft_chart.
+    Formato: /nft_chart <slug> <field>
+    Esempio: /nft_chart bored-ape-yacht-club native
+    """
+    user_id = update.effective_user.id
+    if not is_authorized(user_id):
+        await access_denied(update)
+        return
+    
+    # Verifica parametri
+    if len(context.args) < 2:
+        await update.message.reply_text(
+            "Formato corretto: /nft_chart <slug> <field>\n"
+            "Esempio: /nft_chart bored-ape-yacht-club native\n"
+            "Field: 'native' o 'usd'",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return
+    
+    slug = context.args[0].lower()
+    field = context.args[1].lower()
+    if field not in ["native", "usd"]:
+        await update.message.reply_text(
+            "Field non valido. Usa 'native' o 'usd'.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return
+    
+    db_field = "floor_native" if field == "native" else "floor_usd"
+    
+    # Recupera collection_identifier e chain
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT collection_identifier, chain FROM nft_collections WHERE slug = ?",
+        (slug,)
+    )
+    row = cur.fetchone()
+    if not row:
+        await update.message.reply_text("Slug non trovato.")
+        conn.close()
+        return
+    collection_identifier, chain = row
+    
+    # Recupera dati storici degli ultimi 200 giorni
+    cur.execute(
+        f"""
+        SELECT latest_floor_date, {db_field}
+        FROM historical_nft_data
+        WHERE collection_identifier = ? AND latest_floor_date >= date('now', '-200 days')
+        ORDER BY latest_floor_date ASC
+        """,
+        (collection_identifier,)
+    )
+    data = cur.fetchall()
+    conn.close()
+    
+    if not data:
+        await update.message.reply_text(
+            f"Nessun dato storico trovato per {slug} negli ultimi 200 giorni."
+        )
+        return
+    
+    # Genera il grafico
+    chart_buffer = create_nft_chart(slug, data, db_field, chain)
+    if not chart_buffer:
+        await update.message.reply_text(
+            f"Errore nella generazione del grafico per {slug}."
+        )
+        return
+    
+    # Invia il grafico
+    currency_label = chain.upper() if field == "native" else "USD"
+    await update.message.reply_photo(
+        photo=chart_buffer,
+        caption=f"Grafico del Floor Price ({currency_label}) e Medie Mobili per {slug} (ultimi 200 giorni)",
+        reply_markup=ReplyKeyboardRemove()
+    )
+
 
 # ------- /check_daily_insert HANDLER -------
 async def check_daily_insert(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -403,6 +573,7 @@ def main():
     application.add_handler(CommandHandler("meta", meta))
     application.add_handler(CommandHandler("ma_native", ma_native))
     application.add_handler(CommandHandler("ma_usd", ma_usd))
+    application.add_handler(CommandHandler("nft_chart", nft_chart))
     application.add_handler(CallbackQueryHandler(pagination_callback))
     # Registra i comandi autocomplete per popup "/"
     application.bot.set_my_commands(COMMANDS)

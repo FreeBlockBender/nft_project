@@ -1,5 +1,6 @@
 from typing import List, Tuple
 from datetime import datetime, timedelta
+import numpy as np
 
 def count_days_present(
     date_value_list: List[Tuple[str, float]],
@@ -10,10 +11,8 @@ def count_days_present(
     Conta quanti giorni sono presenti e quanti mancanti negli ultimi {period} giorni da end_date (inclusa).
     Ritorna: (present, missing)
     """
-    # Costruisco insieme delle date da trovare
     end = datetime.strptime(end_date, "%Y-%m-%d")
     days_window = [(end - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(period)][::-1]
-    # Estraggo le date effettivamente presenti, come stringhe
     dates_available = set(d for d, _ in date_value_list)
     present = sum(1 for d in days_window if d in dates_available)
     missing = period - present
@@ -24,7 +23,7 @@ def calculate_sma(
     period: int,
     end_date: str,
     missing_threshold: int
-) -> str:
+) -> float:
     """
     Calcola la media mobile semplice (SMA) su un periodo specifico.
 
@@ -32,7 +31,7 @@ def calculate_sma(
     - Non esiste una riga per quella data nell'elenco;
     - Oppure, esiste una riga ma il valore è NULL.
 
-    Se i giorni mancanti superano missing_threshold, ritorna "N/A per assenza di giorni".
+    Se i giorni mancanti superano missing_threshold, ritorna np.nan.
     Se mancano pochi giorni, esegue interpolazione lineare tra i valori noti più vicini.
 
     Args:
@@ -42,11 +41,8 @@ def calculate_sma(
         missing_threshold: massimo numero di giorni interpolabili
 
     Returns:
-        str: valore SMA formattato, oppure "N/A per assenza di giorni"
+        float: valore SMA, oppure np.nan se non calcolabile
     """
-    from datetime import datetime, timedelta
-
-    # Costruisce la finestra di date
     end = datetime.strptime(end_date, "%Y-%m-%d")
     days_window = [(end - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(period)][::-1]
     values_by_date = {d: v for d, v in date_value_list}
@@ -54,7 +50,6 @@ def calculate_sma(
     available = []
     missing_indices = []
     for i, d in enumerate(days_window):
-        # Caso (a) Non presente nel dict, (b) presente ma valore None/NULL
         if d in values_by_date and values_by_date[d] is not None:
             available.append(values_by_date[d])
         else:
@@ -62,7 +57,7 @@ def calculate_sma(
             missing_indices.append(i)
 
     if len(missing_indices) > missing_threshold:
-        return "N/A per assenza di giorni"
+        return np.nan
 
     # Interpolazione lineare dei buchi interni/estremi
     for idx in missing_indices:
@@ -75,7 +70,7 @@ def calculate_sma(
         elif nextv is not None:
             available[idx] = nextv
         else:
-            return "N/A per assenza di giorni"  # Nessun dato interpolabile
+            return np.nan  # Nessun dato interpolabile
 
     # Calcola la media sui valori (ora tutti not None)
-    return f"{sum(available) / period:.4f}"
+    return sum(available) / period if available else np.nan
