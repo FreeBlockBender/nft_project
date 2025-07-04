@@ -478,13 +478,19 @@ async def ma_generic(update: Update, context: ContextTypes.DEFAULT_TYPE, floor_f
     
     present, missing = count_days_present(date_value_list, 200, end_date)
     
+    # Corrected formatting with ternary operator outside the format specifier
+    sma20_text = f"{sma_results['SMA20']:.4f}" if not np.isnan(sma_results['SMA20']) else "N/A"
+    sma50_text = f"{sma_results['SMA50']:.4f}" if not np.isnan(sma_results['SMA50']) else "N/A"
+    sma100_text = f"{sma_results['SMA100']:.4f}" if not np.isnan(sma_results['SMA100']) else "N/A"
+    sma200_text = f"{sma_results['SMA200']:.4f}" if not np.isnan(sma_results['SMA200']) else "N/A"
+    
     msg_out = (
         f"{slug} : {slug_chain}, {collection_historical_count} records found\n\n"
         f"📅 Data available since: {first_available_date}\n\n"
-        f"SMA20: {sma_results['SMA20']:.4f if not np.isnan(sma_results['SMA20']) else 'N/A'}\n"
-        f"SMA50: {sma_results['SMA50']:.4f if not np.isnan(sma_results['SMA50']) else 'N/A'}\n"
-        f"SMA100: {sma_results['SMA100']:.4f if not np.isnan(sma_results['SMA100']) else 'N/A'}\n"
-        f"SMA200: {sma_results['SMA200']:.4f if not np.isnan(sma_results['SMA200']) else 'N/A'}\n\n"
+        f"SMA20: {sma20_text}\n"
+        f"SMA50: {sma50_text}\n"
+        f"SMA100: {sma100_text}\n"
+        f"SMA200: {sma200_text}\n\n"
         f"Days check: {present} present, {missing} missing"
     )
     await update.message.reply_text(msg_out)
@@ -537,8 +543,10 @@ def main():
     application.bot.set_my_commands(COMMANDS)
     
     # Aggiungi handler per gli errori
-    def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         logger.error(f"Si è verificato un errore: {context.error}")
+        # Return None explicitly to avoid TypeError
+        return None
     
     application.add_error_handler(error_handler)
     
