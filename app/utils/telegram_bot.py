@@ -70,7 +70,7 @@ def get_db_connection():
     return sqlite3.connect(DB_PATH)
 
 # ------- Funzione per generare il grafico dei floor price e SMA -------
-def create_nft_chart(slug: str, data: list, field: str, chain: str, days: int):
+def create_nft_chart(slug: str, data: list, field: str, chain: str, days: int, chain_currency_symbol: str = None):
     """
     Genera un grafico dei floor price e delle medie mobili per una collezione NFT.
     
@@ -80,6 +80,7 @@ def create_nft_chart(slug: str, data: list, field: str, chain: str, days: int):
         field (str): Campo da plottare ('floor_native' o 'floor_usd').
         chain (str): Chain della collezione (per il titolo e l'etichetta).
         days (int): Numero di giorni da visualizzare.
+        chain_currency_symbol (str, optional): Simbolo della valuta nativa della chain (es. ETH, BNB).
     
     Returns:
         BytesIO: Buffer contenente l'immagine del grafico in formato PNG.
@@ -144,7 +145,7 @@ def create_nft_chart(slug: str, data: list, field: str, chain: str, days: int):
     # Plot del floor price in blu
     plt.plot(interp_dates, interp_values, label=f"Floor Price ({field})", color="#3B82F6", linewidth=2, marker='o', markersize=4)
     
-    # Plot delle medie mobili
+    # Plot delle medie mobili come linee continue
     colors = {"SMA20": "#F97316", "SMA50": "#34D399", "SMA100": "#F87171", "SMA200": "#A855F7"}
     for label, sma_values in sma_data.items():
         plt.plot(interp_dates, sma_values, label=label, color=colors[label], linewidth=1.5)
@@ -152,7 +153,9 @@ def create_nft_chart(slug: str, data: list, field: str, chain: str, days: int):
     # Personalizza gli assi e la griglia
     plt.title(f"📈 Floor Price e Medie Mobili per {slug} ({chain}) - {days} giorni", color="white")
     plt.xlabel("Data", color="white")
-    plt.ylabel(f"Prezzo ({chain.upper() if field == 'floor_native' else 'USD'})", color="white")
+    # Usa chain_currency_symbol per nft_chart_native, altrimenti USD
+    y_label = f"Prezzo ({chain_currency_symbol if field == 'floor_native' and chain_currency_symbol else chain.upper() if field == 'floor_native' else 'USD'})"
+    plt.ylabel(y_label, color="white")
     plt.grid(True, color="#4B5563", linestyle='--', alpha=0.5)  # Griglia leggera
     plt.xticks(rotation=45, color="white")
     plt.yticks(color="white")
@@ -166,6 +169,7 @@ def create_nft_chart(slug: str, data: list, field: str, chain: str, days: int):
     buffer.seek(0)
     plt.close()
     return buffer
+
 
 # ------- /start handler -------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -283,13 +287,16 @@ async def enter_slug(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
     collection_identifier, chain = row
     
+    # Fetch data including chain_currency_symbol
     cur.execute(
-        f"SELECT latest_floor_date, {field} FROM historical_nft_data "
+        f"SELECT latest_floor_date, {field}, chain_currency_symbol FROM historical_nft_data "
         "WHERE collection_identifier = ? AND latest_floor_date >= date('now', ? || ' days') "
         "ORDER BY latest_floor_date ASC",
         (collection_identifier, -days)
     )
     data = cur.fetchall()
+    # Extract the first non-None chain_currency_symbol (assuming it’s consistent)
+    chain_currency_symbol = next((row[2] for row in data if row[2] is not None), None)
     conn.close()
     
     if not data:
@@ -298,12 +305,12 @@ async def enter_slug(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if len(data) < days:
         await update.message.reply_text(f"Attenzione: Solo {len(data)} giorni di dati disponibili, meno dei {days} giorni richiesti.")
     
-    chart_buffer = create_nft_chart(slug, data, field, chain, days)
+    chart_buffer = create_nft_chart(slug, data, field, chain, days, chain_currency_symbol)
     if not chart_buffer:
         await update.message.reply_text(f"Errore nella generazione del grafico per {slug}.")
         return ConversationHandler.END
     
-    currency_label = chain.upper() if field == "floor_native" else "USD"
+    currency_label = chain_currency_symbol if field == "floor_native" and chain_currency_symbol else chain.upper() if field == "floor_native" else "USD"
     await update.message.reply_photo(
         photo=chart_buffer,
         caption=f"Grafico del Floor Price ({currency_label}) e Medie Mobili per {slug} (ultimi {days} giorni)",
