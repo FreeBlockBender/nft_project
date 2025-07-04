@@ -1,6 +1,7 @@
 import os
 import logging
 import sqlite3
+import numpy as np
 import matplotlib.pyplot as plt
 import io
 from datetime import datetime
@@ -70,15 +71,21 @@ def create_nft_chart(slug: str, data: list, field: str, chain: str):
     if not data:
         return None
     
-    # Estrai date e valori
+    # Estrai date e valori, convertendo None o non numerici in np.nan
     dates = [datetime.strptime(row[0], "%Y-%m-%d") for row in data]
-    values = [row[1] for row in data if row[1] is not None and str(row[1]).replace('.', '').replace('-', '').isdigit()]
-    if not values:
+    values = []
+    for row in data:
+        value = row[1]
+        if value is None or not (isinstance(value, (int, float)) or str(value).replace('.', '').replace('-', '').isdigit()):
+            values.append(np.nan)
+        else:
+            values.append(float(value))
+    
+    if all(np.isnan(values)):  # Usa np.isnan correttamente
         return None
     
     # Crea una serie temporale continua (interpolazione lineare per gap)
-    from scipy.interpolate import interp1d
-    import numpy as np
+    from scipy.interpolate import interp1d  # Import locale per evitare dipendenze globali inutili
     
     # Converti date in timestamp numerici per l'interpolazione
     date_nums = np.array([d.timestamp() for d in dates])
@@ -87,13 +94,13 @@ def create_nft_chart(slug: str, data: list, field: str, chain: str):
     # Crea una griglia temporale continua
     date_min = min(dates)
     date_max = max(dates)
-    date_range = np.linspace(date_min.timestamp(), date_max.timestamp(), len(dates) * 10)
+    date_range = np.linspace(date_min.timestamp(), date_max.timestamp(), len(dates) * 10)  # Più punti per continuità
     interp_func = interp1d(date_nums, value_nums, kind='linear', fill_value="extrapolate")
     interp_values = interp_func(date_range)
     interp_dates = [datetime.fromtimestamp(ts) for ts in date_range]
     
     # Calcola le medie mobili con interpolazione
-    date_value_list = [(d.strftime("%Y-%m-%d"), float(v) if v is not None and str(v).replace('.', '').replace('-', '').isdigit() else np.nan) for d, v in zip(dates, [row[1] for row in data])]
+    date_value_list = [(d.strftime("%Y-%m-%d"), v) for d, v in zip(dates, values)]
     end_date = date_max.strftime("%Y-%m-%d")
     periods = [
         (20, 1, "SMA20"),
@@ -237,7 +244,6 @@ async def nft_chart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await access_denied(update)
         return
     
-    # Verifica parametri
     if len(context.args) < 2:
         await update.message.reply_text(
             "Formato corretto: /nft_chart <slug> <field>\n"
@@ -258,7 +264,6 @@ async def nft_chart(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     db_field = "floor_native" if field == "native" else "floor_usd"
     
-    # Recupera collection_identifier e chain
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
@@ -272,7 +277,6 @@ async def nft_chart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     collection_identifier, chain = row
     
-    # Recupera dati storici degli ultimi 200 giorni
     cur.execute(
         f"""
         SELECT latest_floor_date, {db_field}
@@ -291,7 +295,6 @@ async def nft_chart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    # Genera il grafico
     chart_buffer = create_nft_chart(slug, data, db_field, chain)
     if not chart_buffer:
         await update.message.reply_text(
@@ -299,14 +302,12 @@ async def nft_chart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     
-    # Invia il grafico
     currency_label = chain.upper() if field == "native" else "USD"
     await update.message.reply_photo(
         photo=chart_buffer,
         caption=f"Grafico del Floor Price ({currency_label}) e Medie Mobili per {slug} (ultimi 200 giorni)",
         reply_markup=ReplyKeyboardRemove()
     )
-
 
 # ------- /check_daily_insert HANDLER -------
 async def check_daily_insert(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -487,11 +488,13 @@ async def ma_generic(update: Update, context: ContextTypes.DEFAULT_TYPE, floor_f
     if not is_authorized(user_id):
         await access_denied(update)
         return
+    
     # Verifica che lo slug sia passato come parametro
     if not context.args:
         await update.message.reply_text("Uso: /ma_native <slug> oppure /ma_usd <slug>")
         return
     slug = context.args[0]
+    
     conn = get_db_connection()
     cur = conn.cursor()
     # Recupera collection_identifier
@@ -502,6 +505,7 @@ async def ma_generic(update: Update, context: ContextTypes.DEFAULT_TYPE, floor_f
         conn.close()
         return
     collection_identifier = row[0]
+    
     # Conta record storici disponibili
     cur.execute("SELECT COUNT(*) FROM historical_nft_data WHERE collection_identifier=?", (collection_identifier,))
     collection_historical_count = cur.fetchone()[0]
@@ -509,6 +513,7 @@ async def ma_generic(update: Update, context: ContextTypes.DEFAULT_TYPE, floor_f
         await update.message.reply_text("No historical data found for this slug")
         conn.close()
         return
+    
     # Query delle serie storiche (floor_native o floor_usd)
     cur.execute(f"""
         SELECT latest_floor_date, {floor_field}, chain
@@ -518,6 +523,7 @@ async def ma_generic(update: Update, context: ContextTypes.DEFAULT_TYPE, floor_f
     """, (collection_identifier,))
     db_rows = cur.fetchall()
     conn.close()
+    
     # Prima data e chain disponibili
     first_available_date = db_rows[0][0]
     slug_chain = db_rows[0][2]
@@ -525,6 +531,7 @@ async def ma_generic(update: Update, context: ContextTypes.DEFAULT_TYPE, floor_f
     date_value_list = [(r[0], r[1]) for r in db_rows]
     today = datetime.utcnow().date()
     end_date = today.strftime("%Y-%m-%d")
+    
     # Definizione delle medie mobili e soglie giorni mancanti
     periods = [
         (20, 1, "SMA20"),
@@ -541,19 +548,22 @@ async def ma_generic(update: Update, context: ContextTypes.DEFAULT_TYPE, floor_f
             missing_threshold=threshold
         )
         sma_results[label] = value
+    
     # Calcolo giorni presenti/mancanti per la finestra di 200 giorni
     present, missing = count_days_present(date_value_list, 200, end_date)
-    # Output formattato
+    
+    # Output formattato con 4 decimali
     msg_out = (
         f"{slug} : {slug_chain}, {collection_historical_count} records found\n\n"
         f"📅 Data available since: {first_available_date}\n\n"
-        f"SMA20: {sma_results['SMA20']}\n"
-        f"SMA50: {sma_results['SMA50']}\n"
-        f"SMA100: {sma_results['SMA100']}\n"
-        f"SMA200: {sma_results['SMA200']}\n\n"
+        f"SMA20: {sma_results['SMA20']:.4f}\n"
+        f"SMA50: {sma_results['SMA50']:.4f}\n"
+        f"SMA100: {sma_results['SMA100']:.4f}\n"
+        f"SMA200: {sma_results['SMA200']:.4f}\n\n"
         f"Days check: {present} present, {missing} missing"
     )
     await update.message.reply_text(msg_out)
+
 # ---- HANDLER SPECIFICI ----
 async def ma_native(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler per /ma_native, calcola SMA sui valori floor_native"""
