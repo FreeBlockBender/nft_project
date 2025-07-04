@@ -135,26 +135,34 @@ def create_nft_chart(slug: str, data: list, field: str, chain: str, days: int):
         sma_data[label] = sma_interp(np.linspace(0, len(sma_nums)-1, len(interp_dates)))
         print(f"{label} values: {sma_values[:10]}...")  # Debug
     
-    # Crea il grafico
-    plt.figure(figsize=(12, 6))
-    plt.plot(interp_dates, interp_values, label=f"Floor Price ({field})", color="blue", linewidth=2)
+    # Imposta uno stile crypto-friendly con tema dark e floor price in blu
+    plt.style.use('dark_background')  # Tema scuro
+    plt.figure(figsize=(12, 6), facecolor='#1E1E1E')  # Sfondo nero
+    ax = plt.gca()
+    ax.set_facecolor('#2B2B2B')  # Sfondo dell'asse
     
-    # Plot delle medie mobili (solo se definite)
-    colors = {"SMA20": "orange", "SMA50": "green", "SMA100": "red", "SMA200": "purple"}
+    # Plot del floor price in blu
+    plt.plot(interp_dates, interp_values, label=f"Floor Price ({field})", color="#3B82F6", linewidth=2, marker='o', markersize=4)
+    
+    # Plot delle medie mobili
+    colors = {"SMA20": "#F97316", "SMA50": "#34D399", "SMA100": "#F87171", "SMA200": "#A855F7"}
     for label, sma_values in sma_data.items():
-        plt.plot(interp_dates, sma_values, label=label, color=colors[label], linestyle="-", linewidth=1.5)
+        plt.plot(interp_dates, sma_values, label=label, color=colors[label], linewidth=1.5)
     
-    # Personalizza il grafico
-    currency_label = chain.upper() if field == "floor_native" else "USD"
-    plt.title(f"Floor Price e Medie Mobili per {slug} ({chain}) - Ultimi {days} giorni")
-    plt.xlabel("Data")
-    plt.ylabel(f"Prezzo ({currency_label})")
-    plt.grid(True)
-    plt.legend()
-    plt.xticks(rotation=45)
+    # Personalizza gli assi e la griglia
+    plt.title(f"📈 Floor Price e Medie Mobili per {slug} ({chain}) - {days} giorni", color="white")
+    plt.xlabel("Data", color="white")
+    plt.ylabel(f"Prezzo ({chain.upper() if field == 'floor_native' else 'USD'})", color="white")
+    plt.grid(True, color="#4B5563", linestyle='--', alpha=0.5)  # Griglia leggera
+    plt.xticks(rotation=45, color="white")
+    plt.yticks(color="white")
+    plt.legend(loc='upper left', bbox_to_anchor=(1, 1), frameon=False, facecolor='#2B2B2B', edgecolor='#2B2B2B', labelcolor='white')
+    
+    # Ottimizza il layout
+    plt.tight_layout()
     
     buffer = io.BytesIO()
-    plt.savefig(buffer, format="png", bbox_inches="tight")
+    plt.savefig(buffer, format="png", bbox_inches="tight", facecolor='#1E1E1E')
     buffer.seek(0)
     plt.close()
     return buffer
