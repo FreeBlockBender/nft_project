@@ -16,6 +16,10 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# === Data folder exclusions ===
-/data/*.json
-/data/nft_historical_data/*.csv
+# === Folders exclusions ===
+data/
+venv/
+
+# === File di script e log ===
+*.sh
+*.log
