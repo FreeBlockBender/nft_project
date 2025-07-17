@@ -74,3 +74,17 @@ def calculate_sma(
 
     # Calcola la media sui valori (ora tutti not None)
     return sum(available) / period if available else np.nan
+
+def is_golden_cross(
+    ma_short_today: float, ma_long_today: float,
+    ma_short_yesterday: float, ma_long_yesterday: float
+) -> bool:
+    """
+    Determina la presenza di una Golden Cross.
+    Una Golden Cross si verifica quando la media mobile "short" (sma50) incrocia verso l'alto la "long" (sma200):
+    cioè: ieri short <= long e oggi short > long.
+    """
+    if (ma_short_yesterday is None or ma_long_yesterday is None or
+        ma_short_today is None or ma_long_today is None):
+        return False
+    return ma_short_yesterday <= ma_long_yesterday and ma_short_today > ma_long_today
