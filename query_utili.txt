@@ -1,0 +1,19 @@
+-- /check_daily_insert
+select latest_floor_date, count(*) 
+from historical_nft_data
+group by latest_floor_date
+order by 1 desc
+;
+
+-- /check_days_presence_since
+select latest_floor_date
+from historical_nft_data
+group by latest_floor_date
+having count(*)>1500
+order by 1 desc;
+
+
+
+select * from historical_golden_crosses
+
+SELECT collection_identifier, slug, chain FROM nft_collections

@@ -37,19 +37,6 @@ ALLOWED_TELEGRAM_IDS = set(
     int(x.strip()) for x in os.getenv("ALLOWED_TELEGRAM_IDS", "").split(",") if x.strip()
 )
 
-# ------- Comandi autocomplete con descrizione -------
-COMMANDS = [
-    BotCommand("start", "Mostra messaggio di benvenuto"),
-    BotCommand("check_missing_days", "Verifica la presenza di giorni mancanti dal dato in poi"),
-    BotCommand("slug_list_by_prefix", "Lista slug che iniziano con una lettera"),
-    BotCommand("slug_list_by_chain", "Lista slug filtrati per chain"),
-    BotCommand("slug_list_by_category", "Lista slug filtrati per categoria"),
-    BotCommand("meta", "Mostra i metadati di una collezione NFT"),
-    BotCommand("ma", "Analisi floor price e medie mobili"),
-    BotCommand("nft_chart_native", "Mostra il grafico del floor price (native) con medie mobili"),
-    BotCommand("nft_chart_usd", "Mostra il grafico del floor price (USD) con medie mobili"),
-]
-
 # ------- Logging -------
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -179,7 +166,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await access_denied(update)
         return
     await update.message.reply_text(
-        f"Benvenuto o Bentornato!\n\n"
+        f"Benvenuto o Bentornato! ermantraut\n\n"
         f"Con questo bot potrai:\n"
         f"🔍 Cercare le collezioni per chain, categoria o prefisso.\n"
         f"ℹ️ Visualizzare i metadati di uno slug.\n"
@@ -635,9 +622,6 @@ def main():
     application.add_handler(conv_handler_native)
     application.add_handler(conv_handler_usd)
     application.add_handler(CallbackQueryHandler(pagination_callback))
-    
-    # Registra i comandi autocomplete
-    application.bot.set_my_commands(COMMANDS)
     
     # Aggiungi handler per gli errori
     async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

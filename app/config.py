@@ -16,7 +16,11 @@ def load_config():
         "CSV_HISTORICAL_DATA_PATH": os.getenv("CSV_HISTORICAL_DATA_PATH"),
         "MOCK_API_MODE": os.getenv("MOCK_API_MODE"),
         "MOCK_API_LOCAL_FILE": os.getenv("MOCK_API_LOCAL_FILE"),
-        "SHORT_MA_DAYS": os.getenv("SHORT_MA_DAYS"),
-        "LONG_MA_DAYS": os.getenv("LONG_MA_DAYS"),
+        "SHORT_SMA": os.getenv("SHORT_SMA"),
+        "LONG_SMA": os.getenv("LONG_SMA"),
+        "SMA_20_MISSING_THRESH": os.getenv("SMA_20_MISSING_THRESH"),
+        "SMA_50_MISSING_THRESH": os.getenv("SMA_50_MISSING_THRESH"),
+        "SMA_100_MISSING_THRESH": os.getenv("SMA_100_MISSING_THRESH"),
+        "SMA_200_MISSING_THRESH": os.getenv("SMA_200_MISSING_THRESH"),
         "ALLOWED_TELEGRAM_IDS": os.getenv("ALLOWED_TELEGRAM_IDS"),
     }
