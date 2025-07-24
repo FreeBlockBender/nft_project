@@ -8,7 +8,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await access_denied(update)
         return
     await update.message.reply_text(
-        "Benvenuto o Bentornato! Ampritt :)\n\n"
+        "Benvenuto o Bentornato! :)\n\n"
         "Con questo bot potrai:\n"
         "🔍 Cercare le collezioni per chain, categoria o prefisso.\n"
         "ℹ️ Visualizzare i metadati di uno slug.\n"
