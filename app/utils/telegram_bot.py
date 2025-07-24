@@ -37,18 +37,6 @@ ALLOWED_TELEGRAM_IDS = set(
     int(x.strip()) for x in os.getenv("ALLOWED_TELEGRAM_IDS", "").split(",") if x.strip()
 )
 
-# ------- Comandi autocomplete con descrizione -------
-COMMANDS = [
-    BotCommand("start", "Mostra messaggio di benvenuto"),
-    BotCommand("slug_list_by_prefix", "Lista slug che iniziano con una lettera"),
-    BotCommand("slug_list_by_chain", "Lista slug filtrati per chain"),
-    BotCommand("slug_list_by_category", "Lista slug filtrati per categoria"),
-    BotCommand("meta", "Mostra i metadati di una collezione NFT"),
-    BotCommand("ma", "Analisi floor price e medie mobili"),
-    BotCommand("nft_chart_native", "Mostra il grafico del floor price (native) con medie mobili"),
-    BotCommand("nft_chart_usd", "Mostra il grafico del floor price (USD) con medie mobili"),
-]
-
 # ------- Logging -------
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -178,7 +166,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await access_denied(update)
         return
     await update.message.reply_text(
-        f"Benvenuto o Bentornato!\n\n"
+        f"Benvenuto o Bentornato! ermantraut\n\n"
         f"Con questo bot potrai:\n"
         f"🔍 Cercare le collezioni per chain, categoria o prefisso.\n"
         f"ℹ️ Visualizzare i metadati di uno slug.\n"
@@ -325,14 +313,94 @@ async def check_daily_insert(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await access_denied(update)
         return
 
+    # Se viene passato un argomento, validalo come data
+    if context.args and len(context.args) > 0:
+        arg_date = context.args[0]
+        try:
+            # Tenta di parsare la data
+            datetime.strptime(arg_date, "%Y-%m-%d")
+        except ValueError:
+            await update.message.reply_text(
+                "❌ Formato data errato. Inserisci la data nel formato 'YYYY-MM-DD'."
+            )
+            return
+        query_date = arg_date
+    else:
+        # Nessun argomento: usa oggi
+        query_date = "now"
+
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT COUNT(*) FROM historical_nft_data WHERE latest_floor_date = DATE('now')")
+    cur.execute(
+        "SELECT COUNT(*) FROM historical_nft_data WHERE latest_floor_date = DATE(?)",
+        (query_date,)
+    )
     result = cur.fetchone()
     conn.close()
-
     x = result[0] if result else 0
-    await update.message.reply_text(f"{x} record inseriti in data odierna")
+    msg = (
+        f"{x} record inseriti in data odierna" if query_date == "now"
+        else f"{x} record inseriti in data {query_date}"
+    )
+    await update.message.reply_text(msg)
+
+# ------- /check_days_presence_since HANDLER -------
+async def check_days_presence_since(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if not is_authorized(user_id):
+        await access_denied(update)
+        return
+
+    # Verifica parametro data
+    if not context.args or len(context.args[0]) != 10:
+        await update.message.reply_text("❌ Devi specificare una data nel formato 'YYYY-MM-DD'.")
+        return
+
+    arg_date = context.args[0]
+    try:
+        start_date = datetime.strptime(arg_date, "%Y-%m-%d").date()
+    except ValueError:
+        await update.message.reply_text("❌ Formato data errato. Usa 'YYYY-MM-DD'.")
+        return
+
+    today = datetime.utcnow().date()
+    if start_date > today:
+        await update.message.reply_text("❌ La data indicata è nel futuro.")
+        return
+
+    # Query raggruppata per giorni con almeno 1500 record
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        SELECT latest_floor_date, COUNT(*)
+        FROM historical_nft_data
+        WHERE latest_floor_date >= DATE(?)
+        GROUP BY latest_floor_date
+        HAVING COUNT(*) > 1500
+        ORDER BY latest_floor_date ASC
+        """,
+        (arg_date,)
+    )
+    results = cur.fetchall()
+    conn.close()
+
+    if not results:
+        await update.message.reply_text("❌ Nessun dato con più di 1500 record trovato.")
+        return
+
+    date_list = [datetime.strptime(row[0], "%Y-%m-%d").date() for row in results]  # elenco date presenti
+    # Costruisci la lista di tutti i giorni tra start_date e ultimo giorno trovato
+    all_dates = [start_date + timedelta(days=x) for x in range((date_list[-1] - start_date).days + 1)]
+    missing = [d.strftime("%Y-%m-%d") for d in all_dates if d not in date_list]
+
+    # Risposta
+    if not missing:
+        await update.message.reply_text("✅ Non ci sono giorni mancanti nella serie dati.")
+    else:
+        msg = "❌ Giorni mancanti:\n" + "\n".join(missing)
+        await update.message.reply_text(msg)
+
 
 # ------- /slug_list_by_prefix HANDLER -------
 async def slug_list_by_prefix(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -544,6 +612,7 @@ def main():
     # Aggiungi gli handler
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("check_daily_insert", check_daily_insert))
+    application.add_handler(CommandHandler("check_missing_days", check_days_presence_since))
     application.add_handler(CommandHandler("slug_list_by_prefix", slug_list_by_prefix))
     application.add_handler(CommandHandler("slug_list_by_chain", slug_list_by_chain))
     application.add_handler(CommandHandler("slug_list_by_category", slug_list_by_category))
@@ -553,9 +622,6 @@ def main():
     application.add_handler(conv_handler_native)
     application.add_handler(conv_handler_usd)
     application.add_handler(CallbackQueryHandler(pagination_callback))
-    
-    # Registra i comandi autocomplete
-    application.bot.set_my_commands(COMMANDS)
     
     # Aggiungi handler per gli errori
     async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

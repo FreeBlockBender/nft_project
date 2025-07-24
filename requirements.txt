@@ -1,0 +1,8 @@
+Package             Version   
+------------------- ----------
+requests              2.32.3
+python-dotenv         1.1.1
+numpy                 2.3.1
+matplotlib            3.10.3
+python-telegram-bot   22.2
+scipy                 1.16.0

@@ -82,3 +82,42 @@ def get_collections_import_summary(json_filename: str, total_elements: int, inse
         f"❌ Errori durante l'elaborazione: {error_count}\n" # Errori di elaborazione/insert
     )
     return msg
+
+def format_golden_cross_msg(obj) -> str:
+    """
+    Crea il messaggio per la Golden Cross.
+    Arrotonda a due cifre floor_native e floor_usd.
+    MA short/long arrotondati a 5 cifre e visualizzati con currency appropriata:
+    Integra ora i valori a partire da ma_short_period / ma_long_period dinamici.
+    """
+    floor_native = f"{obj.get('floor_native', None):.4f}" if obj.get('floor_native') is not None else "N/A"
+    floor_usd = f"{obj.get('floor_usd', None):.2f}" if obj.get('floor_usd') is not None else "N/A"
+    ma_short = f"{obj.get('ma_short', None):.4f}" if obj.get('ma_short') is not None else "N/A"
+    ma_long = f"{obj.get('ma_long', None):.4f}" if obj.get('ma_long') is not None else "N/A"
+
+    # Nuovo: periodi dinamici di MA
+    period_short = obj.get('ma_short_period', "short")
+    period_long = obj.get('ma_long_period', "long")
+
+    # Determina sufisso per MA (simbolo valuta)
+    if obj.get('is_native', 1) in (1, "1", True):  # gestisce possibili tipi diversi
+        ma_suffix = f" {obj.get('chain_currency_symbol', '')}"
+    else:
+        ma_suffix = " USD"
+
+    msg = (
+        f"🔔 **GOLDEN CROSS DETECTED!**\n\n"
+        f"🏷️ Slug: {obj.get('slug', 'N/A')}\n"
+        f"🥇 Ranking: {obj.get('ranking','N/A')}\n"
+        f"💰 Floor Price (Native): {floor_native} {obj.get('chain_currency_symbol','')}\n"
+        f"💵 Floor Price (USD): {floor_usd}\n"
+        f"📜 CA: {obj.get('contract_address','N/A')}\n"
+        f"🔗 Blockchain: {obj.get('chain','N/A')}\n"
+        f"👤 Unique Owners: {obj.get('unique_owners','N/A')}\n"
+        f"🧱 Total Supply: {obj.get('total_supply','N/A')}\n"
+        f"📈 Listed Count: {obj.get('listed_count','N/A')}\n"
+        f"⚡ MA short ({period_short}): {ma_short} {ma_suffix}\n"
+        f"⚡ MA long ({period_long}): {ma_long} {ma_suffix}\n\n"
+        f"🔎 Best Price Url: ({obj.get('best_price_url','')})"
+    )
+    return msg
