@@ -1,7 +1,7 @@
 
 import os
 import sqlite3
-from app.config import load_config
+from app.config.config import load_config
 
 def create_tables_if_not_exist(logger=None):
     """

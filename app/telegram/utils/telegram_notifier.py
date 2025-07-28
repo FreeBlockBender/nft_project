@@ -1,5 +1,5 @@
 import requests
-from app.config import load_config
+from app.config.config import load_config
 
 def send_telegram_message(message: str, chat_id: str):
     """

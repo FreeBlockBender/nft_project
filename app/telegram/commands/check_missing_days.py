@@ -1,7 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 from app.telegram.utils.auth import is_authorized, access_denied
-from app.utils.db_connection import get_db_connection
+from app.database.db_connection import get_db_connection
 
 async def check_days_presence_since(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id

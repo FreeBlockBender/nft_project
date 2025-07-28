@@ -1,11 +1,36 @@
-from telegram.ext import CallbackQueryHandler
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import CallbackQueryHandler, ContextTypes
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from app.telegram.utils.auth import is_authorized, access_denied
 from app.telegram.utils.telegram_query import (
     get_slugs_by_prefix, get_slugs_by_chain, get_slugs_by_category
 )
+from app.database.database import get_db_connection
 
 PAGE_SIZE = 10
+
+async def paginated_list_handler(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE,
+    query: str,
+    query_value: str,
+    command: str,
+    page: int = 0,
+    field: str = "slug"
+):
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(query, (query_value,))
+    results = [row[0] for row in cursor.fetchall()]
+    conn.close()
+
+    page_results, total_pages = get_paginated_results(results, page)
+    text = "No results found." if not page_results else f"Risultati (pagina {page+1}/{total_pages}):\n" + "\n".join(page_results)
+    reply_markup = build_pagination_keyboard(command, query_value, page, total_pages)
+    if update.message:
+        await update.message.reply_text(text, reply_markup=reply_markup or ReplyKeyboardRemove())
+    elif update.callback_query:
+        await update.callback_query.edit_message_text(text, reply_markup=reply_markup)
 
 def get_paginated_results(results, page, page_size=PAGE_SIZE):
     start = page * page_size

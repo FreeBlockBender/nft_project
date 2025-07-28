@@ -128,3 +128,16 @@ git push origin feature/your-feature-name
 - Never commit directly to master
 - Use feature branches for clarity and isolation
 - Pull Request flow: feature → develop → master
+
+
+## 🤖 Script list
+
+| Script                | Description                                                      |
+|-----------------------|------------------------------------------------------------------|
+| `scripts.detect_current_golden_crosses_20_50`  | Verifies the number of today's inserts in `historical_nft_data`. |
+| `slug_list_by_prefix` | Retrieves collection slugs that start with a specific prefix.     |
+| `slug_list_by_chain`  | Lists slugs filtered by the related blockchain.                  |
+| `slug_list_by_category` | Finds slugs organized by category.                             |
+| `meta`                | Fetches detailed metadata for an NFT collection.                 |
+| `ma_native`           | Displays moving averages for the collection in native currency.  |
+| `ma_usd`             | Displays moving averages for the collection in USD.              |

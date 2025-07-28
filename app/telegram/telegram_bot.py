@@ -6,8 +6,8 @@ from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, ConversationHandler
 )
 from app.telegram.commands.start import start_handler
-from app.telegram.commands.nft_chart_native import native_chart_conv_handler
-from app.telegram.commands.nft_chart_usd import usd_chart_conv_handler
+from app.telegram.commands.nft_chart_native import nft_chart_native_handler
+from app.telegram.commands.nft_chart_usd import nft_chart_usd_handler
 from app.telegram.commands.check_daily_insert import check_daily_insert_handler
 from app.telegram.commands.check_missing_days import check_missing_days_handler
 from app.telegram.commands.slug_list_by_prefix import slug_list_by_prefix_handler
@@ -20,7 +20,7 @@ from app.telegram.utils.pagination import pagination_callback_handler
 from app.telegram.utils.error_handler import error_handler
 
 # Carica il token dal modulo di configurazione
-from app.config import load_config
+from app.config.config import load_config
 
 def main():
     config = load_config()
@@ -31,8 +31,8 @@ def main():
 
     # Registrazione di tutti gli handler di comando e callback
     application.add_handler(start_handler)
-    application.add_handler(native_chart_conv_handler)
-    application.add_handler(usd_chart_conv_handler)
+    application.add_handler(nft_chart_native_handler)
+    application.add_handler(nft_chart_usd_handler)
     application.add_handler(check_daily_insert_handler)
     application.add_handler(check_missing_days_handler)
     application.add_handler(slug_list_by_prefix_handler)

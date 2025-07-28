@@ -121,3 +121,23 @@ def format_golden_cross_msg(obj) -> str:
         f"🔎 Best Price Url: ({obj.get('best_price_url','')})"
     )
     return msg
+
+def get_golden_cross_summary_msg(mode, ma_short, ma_long, total_crosses, inserted_records):
+    """
+    Genera un messaggio di riepilogo elaborazione Golden Cross.
+
+    Args:
+        mode (str): 'historical' o 'current'
+        ma_short (int): periodo short della media mobile
+        ma_long (int): periodo long della media mobile
+        total_crosses (int): tot Golden Cross rilevate
+        inserted_records (int): effettivi record aggiunti nel DB
+
+    Returns:
+        str: messaggio Telegram formattato
+    """
+    return (f"✨➕📈💰 Golden Cross Elaboration Recap ✨➕📈💰 \n\n"
+            f"📌 Golden Cross type: {mode}\n "
+            f"📊 SMA used: {ma_short} , {ma_long}\n "
+            f"🔎 Golden Cross found: {total_crosses}\n"
+            f"💾 Golden Cross saved in DB : {inserted_records}")

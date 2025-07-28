@@ -1,6 +1,6 @@
 import sqlite3
-from app.config import load_config
-from app.utils.golden_cross_notifier import notify_monthly_crosses
+from app.config.config import load_config
+from app.golden_cross.golden_cross_notifier import notify_monthly_crosses
 
 def main():
     config = load_config()

@@ -1,8 +1,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 from app.telegram.utils.auth import is_authorized, access_denied
-from app.telegram.utils.pagination import get_paginated_results, build_pagination_keyboard
-from app.utils.db_connection import get_db_connection
+from app.telegram.utils.pagination import get_paginated_results, build_pagination_keyboard, paginated_list_handler
+from app.database.db_connection import get_db_connection
 
 PAGE_SIZE = 10
 

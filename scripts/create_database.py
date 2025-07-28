@@ -1,5 +1,5 @@
-from app.utils.logging_config import setup_logging
-from app.database import create_tables_if_not_exist
+from app.config.logging_config import setup_logging
+from app.database.database import create_tables_if_not_exist
 import logging
 
 def main():

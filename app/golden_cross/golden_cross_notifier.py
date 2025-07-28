@@ -1,8 +1,8 @@
 import sqlite3
 from datetime import datetime, timedelta
-from app.utils.telegram_notifier import send_telegram_message, get_monitoring_chat_id
-from app.utils.telegram_msg_templates import format_golden_cross_msg
-from app.config import load_config
+from app.telegram.utils.telegram_notifier import send_telegram_message, get_monitoring_chat_id
+from app.telegram.utils.telegram_msg_templates import format_golden_cross_msg
+from app.config.config import load_config
 
 config = load_config()
 db_path = config.get("DB_PATH", "nft_data.sqlite3")

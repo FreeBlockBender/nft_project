@@ -2,10 +2,10 @@ import os
 import json
 import logging
 from datetime import date
-from app.database import get_db_connection
+from app.database.database import get_db_connection
 from app.utils.helpers import extract_or_none
-from app.utils.telegram_notifier import send_telegram_message, get_monitoring_chat_id
-from app.utils import telegram_msg_templates  # Import del modulo per i template
+from app.telegram.utils.telegram_notifier import send_telegram_message, get_monitoring_chat_id
+from app.telegram.utils import telegram_msg_templates  # Import del modulo per i template
 
 
 def import_collections():
