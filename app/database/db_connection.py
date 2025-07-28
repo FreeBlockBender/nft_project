@@ -1,7 +1,7 @@
 # app/utils/db_connection.py
 
 import sqlite3
-from app.config import load_config
+from app.config.config import load_config
 
 config = load_config()
 DB_PATH = config.get("DB_PATH", "nft_data.sqlite3")

@@ -1,6 +1,6 @@
 # Script di lancio per avviare il bot Telegram
 
-from app.telegram_bot import main
+from app.telegram.telegram_bot import main
 
 def run_bot():
     """

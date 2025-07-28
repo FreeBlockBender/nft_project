@@ -1,6 +1,8 @@
 import sqlite3
 from datetime import datetime
-from app.utils.moving_average import calculate_sma, is_golden_cross
+from app.golden_cross.moving_average import calculate_sma, is_golden_cross
+from app.telegram.utils.telegram_notifier import send_telegram_message, get_monitoring_chat_id
+from app.telegram.utils.telegram_msg_templates import get_golden_cross_summary_msg
 
 def get_collections(conn):
     """Recupera tutte le collezioni NFT dal DB."""
@@ -36,7 +38,7 @@ def insert_golden_cross(conn, collection_id, chain, date, is_native,
                         short_period, long_period):
     """
     Inserisce una Golden Cross nella tabella dedicata.
-    Gestisce l'eccezione IntegrityError (es. UNIQUE constraint) loggando in modo dettagliato.
+    Restituisce True se l'inserimento ha avuto successo, False se era già presente (IntegrityError).
     """
     cur = conn.cursor()
     try:
@@ -49,109 +51,120 @@ def insert_golden_cross(conn, collection_id, chain, date, is_native,
               floor_native, floor_usd,
               ma_short_today, ma_long_today, ma_short_yesterday, ma_long_yesterday,
               short_period, long_period))
+        return True  # Inserimento ok
     except sqlite3.IntegrityError as e:
-        # Gestione dell'errore UNIQUE constraint (già esistente)
         print(
             f"[DUPLICATO] Golden Cross già presente: "
             f"collection_identifier='{collection_id}', chain='{chain}', date='{date}', "
             f"ma_short_period={short_period}, ma_long_period={long_period} -- "
             f"Errore: {e}"
         )
-        # Si prosegue senza propagare l’errore
+        return False  # Duplicato, non inserito
 
 def detect_all_historical_golden_crosses(conn, short_period, long_period,
                                          short_thresh, long_thresh):
     """
-    Scorre TUTTA la serie storica di ogni collezione per tutte le combinazioni richieste
-    e inserisce tutte le Golden Cross che rileva. Parametrico.
+    Elabora la serie storica di tutte le collezioni per tutte le combinazioni richieste,
+    inserisce tutte le Golden Cross che rileva e manda un recap su Telegram.
     """
     collections = get_collections(conn)
     total = len(collections)
-    gc_total = 0
-
+    golden_cross_detected = 0  # Numero totale di GC rilevate
+    golden_cross_inserted = 0  # Effettivamente inserite in DB
     for idx, (collection_id, slug, chain) in enumerate(collections, 1):
         print(f"\nCollezione {idx} di {total} – Slug: {slug}")
-
         for floor_field, is_native in [("floor_native", True), ("floor_usd", False)]:
             serie = get_floor_series(conn, collection_id, floor_field)
-            crosses_found = 0
-
             if len(serie) < long_period + 1:
                 print(f"[{idx}/{total}] {slug}: dati insufficienti per la media mobile ({floor_field})")
                 continue
-
             date_list = [d for d, v in serie]
-
             for i in range(long_period, len(date_list)):
                 date_today = date_list[i]
                 date_yesterday = date_list[i - 1]
-
                 ma_short_today = calculate_sma(serie[:i + 1], short_period, date_today, short_thresh)
                 ma_long_today = calculate_sma(serie[:i + 1], long_period, date_today, long_thresh)
                 ma_short_yesterday = calculate_sma(serie[:i], short_period, date_yesterday, short_thresh)
                 ma_long_yesterday = calculate_sma(serie[:i], long_period, date_yesterday, long_thresh)
-
                 if any(x is None for x in [ma_short_today, ma_long_today, ma_short_yesterday, ma_long_yesterday]):
                     print(f"[{idx}/{total}] {slug}: dati mancanti per {floor_field} (date: {date_today})")
                     continue
-
                 if is_golden_cross(ma_short_today, ma_long_today, ma_short_yesterday, ma_long_yesterday):
                     floor_native, floor_usd = get_floor_usd_and_native(conn, collection_id, date_today)
-                    insert_golden_cross(conn, collection_id, chain, date_today, is_native,
+                    golden_cross_detected += 1
+                    inserted = insert_golden_cross(conn, collection_id, chain, date_today, is_native,
                                         floor_native, floor_usd,
                                         ma_short_today, ma_long_today,
                                         ma_short_yesterday, ma_long_yesterday,
                                         short_period, long_period)
-                    crosses_found += 1
+                    if inserted:
+                        golden_cross_inserted += 1
                     print(f"[{idx}/{total}] {slug} - Golden Cross rilevata/registrata in data {date_today} ({'native' if is_native else 'usd'})")
-
-            print(f"[{idx}/{total}] {slug} - Golden Cross trovate nella serie ({floor_field}): {crosses_found}")
-            gc_total += crosses_found
-    print(f"\nTotale Golden Cross storiche individuate: {gc_total}")
+    print(f"\nTotale Golden Cross storiche individuate: {golden_cross_detected}")
+    print(f"Record inseriti nel DB: {golden_cross_inserted}")
     conn.commit()
+    # --- Messaggio Telegram riepilogo ---
+    chat_id = get_monitoring_chat_id()
+    msg = get_golden_cross_summary_msg(
+        mode='historical',
+        ma_short=short_period,
+        ma_long=long_period,
+        total_crosses=golden_cross_detected,
+        inserted_records=golden_cross_inserted
+    )
+    send_telegram_message(msg, chat_id)
+    return golden_cross_detected, golden_cross_inserted
 
 def detect_current_golden_crosses(conn, short_period, long_period,
                                   short_thresh, long_thresh):
     """
-    Controlla SOLO l’ultima data disponibile per ogni collezione: registra una Golden Cross solo se si è verificata oggi.
-    Parametrico.
+    Elabora SOLO l’ultima data disponibile per ogni collezione.
+    Inserisce e notifica recap Telegram a fine corsa.
     """
     collections = get_collections(conn)
     total = len(collections)
-    gc_total = 0
-
+    golden_cross_detected = 0
+    golden_cross_inserted = 0
     for idx, (collection_id, slug, chain) in enumerate(collections, 1):
         print(f"\nCollezione {idx} di {total} – Slug: {slug}")
-
         for floor_field, is_native in [("floor_native", True), ("floor_usd", False)]:
             serie = get_floor_series(conn, collection_id, floor_field)
             if len(serie) < long_period + 1:
                 print(f"[{idx}/{total}] {slug}: dati insufficienti per la media mobile ({floor_field})")
                 continue
-
             date_list = [d for d, v in serie]
             i = len(date_list) - 1
             date_today = date_list[i]
             date_yesterday = date_list[i - 1]
-
             ma_short_today = calculate_sma(serie[:i + 1], short_period, date_today, short_thresh)
             ma_long_today = calculate_sma(serie[:i + 1], long_period, date_today, long_thresh)
             ma_short_yesterday = calculate_sma(serie[:i], short_period, date_yesterday, short_thresh)
             ma_long_yesterday = calculate_sma(serie[:i], long_period, date_yesterday, long_thresh)
-
             if any(x is None for x in [ma_short_today, ma_long_today, ma_short_yesterday, ma_long_yesterday]):
                 print(f"[{idx}/{total}] {slug}: dati mancanti per {floor_field} ({date_today})")
                 continue
-
             if is_golden_cross(ma_short_today, ma_long_today, ma_short_yesterday, ma_long_yesterday):
                 floor_native, floor_usd = get_floor_usd_and_native(conn, collection_id, date_today)
-                insert_golden_cross(conn, collection_id, chain, date_today, is_native,
+                golden_cross_detected += 1
+                inserted = insert_golden_cross(conn, collection_id, chain, date_today, is_native,
                                     floor_native, floor_usd,
                                     ma_short_today, ma_long_today,
                                     ma_short_yesterday, ma_long_yesterday,
                                     short_period, long_period)
-                gc_total += 1
+                if inserted:
+                    golden_cross_inserted += 1
                 print(f"[{idx}/{total}] {slug} - Golden Cross ODIERNA registrata ({'native' if is_native else 'usd'}) in data {date_today}")
-
-    print(f"\nTotale Golden Cross attuali individuate: {gc_total}")
+    print(f"\nTotale Golden Cross attuali individuate: {golden_cross_detected}")
+    print(f"Record inseriti nel DB: {golden_cross_inserted}")
     conn.commit()
+    # --- Messaggio Telegram riepilogo ---
+    chat_id = get_monitoring_chat_id()
+    msg = get_golden_cross_summary_msg(
+        mode='current',
+        ma_short=short_period,
+        ma_long=long_period,
+        total_crosses=golden_cross_detected,
+        inserted_records=golden_cross_inserted
+    )
+    send_telegram_message(msg, chat_id)
+    return golden_cross_detected, golden_cross_inserted

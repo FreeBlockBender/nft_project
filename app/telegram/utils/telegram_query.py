@@ -32,7 +32,7 @@ def get_slugs_by_category(category):
     """
     Restituisce tutti gli slug di una categoria (es: art, gaming...).
     """
-    query = "SELECT slug FROM nft_collections WHERE LOWER(category) = ? ORDER BY slug COLLATE NOCASE"
+    query = "SELECT slug FROM nft_collections WHERE LOWER(categories) = ? ORDER BY slug COLLATE NOCASE"
     with get_db_connection() as conn:
         cur = conn.cursor()
         cur.execute(query, (category.lower(),))

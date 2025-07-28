@@ -1,4 +1,4 @@
-from app.utils.logging_config import setup_logging
+from app.config.logging_config import setup_logging
 from app.data_import.import_collections import import_collections
 import logging
 

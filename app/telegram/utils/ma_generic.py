@@ -3,8 +3,8 @@ import numpy as np
 from telegram import Update
 from telegram.ext import ContextTypes
 from app.telegram.utils.auth import is_authorized, access_denied
-from app.utils.db_connection import get_db_connection
-from app.utils.moving_average import calculate_sma, count_days_present
+from app.database.db_connection import get_db_connection
+from app.golden_cross.moving_average import calculate_sma, count_days_present
 
 async def ma_generic(update: Update, context: ContextTypes.DEFAULT_TYPE, floor_field: str):
     user_id = update.effective_user.id

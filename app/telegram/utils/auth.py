@@ -1,7 +1,7 @@
 """
 Modulo autenticazione bot Telegram (usa .env con il modulo config).
 """
-from app.config import load_config
+from app.config.config import load_config
 
 # Prende la configurazione caricando prima le variabili da .env
 config = load_config()
@@ -22,7 +22,7 @@ def is_authorized(user_id: int) -> bool:
     """
     Restituisce True se user_id è abilitato tra gli allowed (da config/.env).
     """
-    print(f"Controllo user_id={user_id}, allowed={ALLOWED_TELEGRAM_IDS}")  # Debug
+    #print(f"Controllo user_id={user_id}, allowed={ALLOWED_TELEGRAM_IDS}")  # Debug
     return user_id in ALLOWED_TELEGRAM_IDS
 
 async def access_denied(update):

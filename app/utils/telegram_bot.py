@@ -24,7 +24,7 @@ from telegram.ext import (
 from telegram.constants import ParseMode
 from scipy.interpolate import interp1d
 
-from app.utils.moving_average import calculate_sma, count_days_present
+from app.golden_cross.moving_average import calculate_sma, count_days_present
 
 # ------- Stati della conversazione -------
 SELECT_DAYS, ENTER_SLUG = range(2)
