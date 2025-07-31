@@ -13,10 +13,11 @@ async def slug_list_by_prefix(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     if not context.args or len(context.args[0]) < 1:
-        await update.message.reply_text("Formato corretto: /slug_list_by_prefix {lettera}")
+        await update.message.reply_text("Formato corretto: /slug_list_by_prefix <prefisso>")
         return
-    letter = context.args[0][0]
+
+    prefix = context.args[0]
     query = "SELECT slug FROM nft_collections WHERE slug LIKE ? COLLATE NOCASE"
-    await paginated_list_handler(update, context, query, f"{letter}%", "slug_list_by_prefix")
+    await paginated_list_handler(update, context, query, f"{prefix}%", "slug_list_by_prefix")
 
 slug_list_by_prefix_handler = CommandHandler("slug_list_by_prefix", slug_list_by_prefix)

@@ -13,6 +13,7 @@ def load_config():
         "TELEGRAM_BOT_TOKEN": os.getenv("TELEGRAM_BOT_TOKEN"),
         "TELEGRAM_MONITORING_CHAT_ID": os.getenv("TELEGRAM_MONITORING_CHAT_ID"),
         "TELEGRAM_CHANNEL_CHAT_ID": os.getenv("TELEGRAM_CHANNEL_CHAT_ID"),
+        "TELEGRAM_GC_DRAFT_CHAT_ID": os.getenv("TELEGRAM_GC_DRAFT_CHAT_ID"),
         "CSV_HISTORICAL_DATA_PATH": os.getenv("CSV_HISTORICAL_DATA_PATH"),
         "MOCK_API_MODE": os.getenv("MOCK_API_MODE"),
         "MOCK_API_LOCAL_FILE": os.getenv("MOCK_API_LOCAL_FILE"),
