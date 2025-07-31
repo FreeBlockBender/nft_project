@@ -1,5 +1,5 @@
 from telegram.ext import CallbackQueryHandler, ContextTypes
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, ReplyKeyboardRemove
 from app.telegram.utils.auth import is_authorized, access_denied
 from app.telegram.utils.telegram_query import (
     get_slugs_by_prefix, get_slugs_by_chain, get_slugs_by_category
@@ -76,7 +76,12 @@ async def pagination_callback(update, context):
         return
 
     page_results, total_pages = get_paginated_results(results, page, PAGE_SIZE)
-    text = "\n".join(r[0] for r in page_results)
+    
+    text = (
+    "No results found." if not page_results
+    else f"Risultati (pagina {page + 1}/{total_pages}):\n"
+    + "\n".join(r[0] for r in page_results)
+    )
     keyboard = build_pagination_keyboard(command, query_value, page, total_pages)
     await update.callback_query.edit_message_text(text, reply_markup=keyboard)
 
