@@ -2,9 +2,9 @@ import os
 import csv
 import logging
 from datetime import datetime
-from app.database import get_db_connection
-from app.utils.telegram_notifier import send_telegram_message, get_monitoring_chat_id
-from app.config import load_config
+from app.database.database import get_db_connection
+from app.telegram.utils.telegram_notifier import send_telegram_message, get_monitoring_chat_id
+from app.config.config import load_config
 
 # Configura logging
 logging.basicConfig(level=logging.INFO)

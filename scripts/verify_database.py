@@ -1,7 +1,7 @@
 import os
 import sqlite3
-from app.config import load_config
-from app.utils.logging_config import setup_logging
+from app.config.config import load_config
+from app.config.logging_config import setup_logging
 import logging
 
 def table_exists(conn, table_name):

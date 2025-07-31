@@ -1,5 +1,5 @@
 import requests
-from app.config import load_config
+from app.config.config import load_config
 
 def send_telegram_message(message: str, chat_id: str):
     """
@@ -33,3 +33,10 @@ def get_channel_chat_id():
     """
     config = load_config()
     return config.get("TELEGRAM_CHANNEL_CHAT_ID", "")
+
+def get_gc_draft_chat_id():
+    """
+    Restituisce il chat_id per i draft sulle golden cross, pre invio sul canale
+    """
+    config = load_config()
+    return config.get("TELEGRAM_GC_DRAFT_CHAT_ID", "")
