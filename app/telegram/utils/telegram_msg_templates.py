@@ -1,5 +1,6 @@
 
 # app/utils/telegram_msg_templates.py
+from datetime import datetime, date
 
 def get_csv_import_summary(total_files_found: int, files_processed_successfully: int, files_skipped: int, total_row_errors: int) -> str:
     """
@@ -40,7 +41,7 @@ def get_api_import_summary(total_elements: int, inserted_count: int, skipped_dat
     """
     # Preparazione dettaglio salvataggio file
     if file_save_status == "success":
-        saving_detail = "Risposta API salvata correttamente."
+        saving_detail = "Response salvata!"
     elif file_save_status and file_save_status.startswith("error:"):
         saving_detail = f"❌ Errore salvataggio risposta API: {file_save_status.split(':',1)[1]}"
     elif file_save_status == "skipped":
@@ -50,12 +51,12 @@ def get_api_import_summary(total_elements: int, inserted_count: int, skipped_dat
 
 
     msg = (
-        "🤖 Report Import API NFT Collections 📈\n\n" # Titolo del report
-        f"Totale elementi nel payload JSON: {total_elements}\n" # Totale elementi processati
-        f"✔️ Record inseriti: {inserted_count}\n" # Elementi inseriti con successo
-        f"🔸 Record saltati (data non odierna): {skipped_date_mismatch}\n" # Elementi saltati per mismatch data
-        f"❌ Record con errori di insert: {failed_count}\n" # Elementi con errori durante l'inserimento
-        f"\n💾 Status Salvataggio File JSON:\n{saving_detail}" # Dettaglio salvataggio file
+        "🤖 Report Import API\n\n" # Titolo del report
+        f"🔎 Oggetti trovati: {total_elements}\n" # Totale elementi processati
+        f"✔️ Inseriti: {inserted_count}\n" # Elementi inseriti con successo
+        f"⚠️ Skippati (data non odierna): {skipped_date_mismatch}\n" # Elementi saltati per mismatch data
+        f"❌ Errori: {failed_count}\n" # Elementi con errori durante l'inserimento
+        f"\n💾 {saving_detail}" # Dettaglio salvataggio file
     )
     return msg
 
@@ -74,12 +75,12 @@ def get_collections_import_summary(json_filename: str, total_elements: int, inse
         La stringa formattata per il messaggio Telegram.
     """
     msg = (
-        f"📁 Report Import Metadati \n\n" # Titolo del report
-        f"File processato: {json_filename}\n" # Nome del file
-        f"Totale elementi nel file: {total_elements}.\n" # Totale elementi nel file
-        f"✔️ Record inseriti (nuovi): {inserted_count}\n" # Collezioni inserite
-        f"⚠️ Record ignorati (già presenti): {ignored_count}\n" # Collezioni ignorate da INSERT OR IGNORE
-        f"❌ Errori durante l'elaborazione: {error_count}\n" # Errori di elaborazione/insert
+        f"📄 Report Import Metadati \n\n" # Titolo del report
+        f"📁 {json_filename}\n\n" # Nome del file
+        f"🔎Collezioni trovate: {total_elements}.\n" # Totale elementi nel file
+        f"✔️ Inseriti: {inserted_count}\n" # Collezioni inserite
+        f"🔄 Ignoranti (già presenti): {ignored_count}\n" # Collezioni ignorate da INSERT OR IGNORE
+        f"❌ In errore: {error_count}\n" # Errori di elaborazione/insert
     )
     return msg
 
@@ -107,6 +108,7 @@ def format_golden_cross_msg(obj) -> str:
 
     msg = (
         f"🔔 **GOLDEN CROSS DETECTED!**\n\n"
+        f"🗓️ Date: {obj.get('date', 'N/A')}\n"
         f"🏷️ Slug: {obj.get('slug', 'N/A')}\n"
         f"🥇 Ranking: {obj.get('ranking','N/A')}\n"
         f"💰 Floor Price (Native): {floor_native} {obj.get('chain_currency_symbol','')}\n"
@@ -136,8 +138,60 @@ def get_golden_cross_summary_msg(mode, ma_short, ma_long, total_crosses, inserte
     Returns:
         str: messaggio Telegram formattato
     """
-    return (f"✨➕📈💰 Golden Cross Elaboration Recap ✨➕📈💰 \n\n"
-            f"📌 Golden Cross type: {mode}\n "
-            f"📊 SMA used: {ma_short} , {ma_long}\n "
-            f"🔎 Golden Cross found: {total_crosses}\n"
-            f"💾 Golden Cross saved in DB : {inserted_records}")
+    return (f"✨ Golden Cross Elaboration [{ma_short} , {ma_long}] 📈\n\n"
+            f"📌 Type: {mode}\n "
+            f"🔎 Found: {total_crosses}\n"
+            f"💾 Saved in DB: {inserted_records}")
+
+
+def format_golden_cross_monthly_recap_msg(
+    crosses,
+    ma_short_period,
+    ma_long_period,
+    today_str
+):
+    """
+    Costruisce il messaggio riepilogativo mensile delle golden cross secondo il template richiesto.
+    crosses: lista di dict con tutti i dati necessari per ogni cross
+    ma_short_period, ma_long_period: interi - valori delle medie mobili utilizzate
+    today_str: stringa data corrente nel formato DD-MM-YYYY
+    """
+
+    header = f"*** GOLDEN CROSS MONTHLY RECAP ({ma_short_period},{ma_long_period}) ***"
+    rows = []
+
+    for idx, cross in enumerate(crosses, 1):
+        slug = cross["slug"]
+        chain = cross["chain"]
+        is_native = cross["is_native"]
+        # Floor e symbol per golden cross day
+        if is_native:
+            original_floor = cross["floor_native"]
+            currency = cross["chain_currency_symbol"]
+        else:
+            original_floor = cross["floor_usd"]
+            currency = "usd"
+
+        gc_date = datetime.strptime(cross["date"], "%Y-%m-%d").strftime("%d-%m-%Y")
+
+        # Floor e symbol attuali
+        if is_native:
+            current_floor = cross["current_floor_native"]
+        else:
+            current_floor = cross["current_floor_usd"]
+
+        ## percentuale profit
+        if original_floor and current_floor and original_floor != 0:
+            profit = ((current_floor - original_floor) / original_floor) * 100
+            profit_str = f"{profit:+.0f}% "
+            profit_str += "🟢" if profit >= 0 else "🔴"
+        else:
+            profit_str = "n.d."
+
+        row = (
+            f"{idx}. - {slug}, {chain}, original floor: {original_floor:g} {currency} on {gc_date}, "
+            f"now {current_floor:g} {currency} on {today_str}, profit {profit_str}"
+        )
+        rows.append(row)
+
+    return f"{header}\n\n" + "\n\n".join(rows) if rows else f"{header}\n\nNessuna Golden Cross rilevata nell'ultimo mese."
