@@ -1,7 +1,10 @@
 import sqlite3
 from datetime import datetime, timedelta
 from app.telegram.utils.telegram_notifier import send_telegram_message, get_gc_draft_chat_id
-from app.telegram.utils.telegram_msg_templates import format_golden_cross_msg
+from app.telegram.utils.telegram_msg_templates import (
+    format_golden_cross_msg,
+    format_golden_cross_monthly_recap_msg
+)
 from app.config.config import load_config
 
 config = load_config()
@@ -77,10 +80,9 @@ def notify_today_crosses(conn):
     crosses = get_crosses_by_date(conn, today)
     notify_crosses(conn, crosses, label="data odierna")
 
-def notify_monthly_crosses(conn, days=30, ma_short_period=None, ma_long_period=None):
+def notify_monthly_crosses(conn, days=365, ma_short_period=None, ma_long_period=None):
     """
-    Notifica tutte le Golden Cross degli ultimi 'days' (default=30 giorni).
-    Filtri opzionali su ma_short_period e ma_long_period.
+    Invia un solo messaggio di recap con TUTTE le Golden Cross trovate nell'ultimo mese, secondo la formattazione specifica.
     """
     today = datetime.utcnow().date()
     from_date = (today - timedelta(days=days)).strftime("%Y-%m-%d")
@@ -88,4 +90,45 @@ def notify_monthly_crosses(conn, days=30, ma_short_period=None, ma_long_period=N
     crosses = get_crosses_between_dates(
         conn, from_date, to_date, ma_short_period=ma_short_period, ma_long_period=ma_long_period
     )
-    notify_crosses(conn, crosses, label=f"ultimo periodo ({from_date} - {to_date})")
+
+    unified_data = []
+    # Prepara una sola lista di dict, ciascuno con i dati aggregati richiesti per ogni cross
+    for cross in crosses:
+        # Dati della cross nel giorno
+        collection_identifier = cross["collection_identifier"]
+        cross_date = cross["date"]
+        is_native = cross["is_native"]
+        # Dati NFT nel giorno della GC
+        nft_row = get_nftdata(conn, collection_identifier, cross_date)
+        if not nft_row:
+            continue
+        # Dati attuali della collezione (record più recente di historical_nft_data)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT floor_native, floor_usd, chain_currency_symbol, latest_floor_date "
+            "FROM historical_nft_data WHERE collection_identifier = ? ORDER BY latest_floor_date DESC LIMIT 1",
+            (collection_identifier,)
+        )
+        current_nft_row = cur.fetchone()
+        if not current_nft_row:
+            continue
+
+        item = {}
+        item["slug"] = nft_row["slug"]
+        item["chain"] = nft_row["chain"]
+        item["is_native"] = is_native
+        item["chain_currency_symbol"] = nft_row["chain_currency_symbol"]
+        item["floor_native"] = cross["floor_native"]
+        item["floor_usd"] = cross["floor_usd"]
+        item["date"] = cross_date
+        item["current_floor_native"] = current_nft_row["floor_native"]
+        item["current_floor_usd"] = current_nft_row["floor_usd"]
+        unified_data.append(item)
+
+    today_str = today.strftime("%d-%m-%Y")
+    ma1 = ma_short_period if ma_short_period is not None else "?"
+    ma2 = ma_long_period if ma_long_period is not None else "?"
+
+    msg = format_golden_cross_monthly_recap_msg(unified_data, ma1, ma2, today_str)
+    chat_id = get_gc_draft_chat_id()
+    send_telegram_message(msg, chat_id)
