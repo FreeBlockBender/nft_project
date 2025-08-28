@@ -22,6 +22,7 @@ def import_nft_collections_via_api():
     """
     config = load_config()
     api_endpoint = config.get("API_ENDPOINT")
+    api_host = config.get("API_HOST")
     api_key = config.get("QAPIKEY")
     # Assicurati che la variabile di ambiente sia letta correttamente e confrontata con 'true' (case-insensitive)
     mock_mode = str(config.get("MOCK_API_MODE", "false")).lower() == "true"
@@ -69,10 +70,10 @@ def import_nft_collections_via_api():
 
     else:
         # Se MOCK_API_MODE è false, effettua la chiamata API reale
-        params = {"qapikey": api_key}
+        headers = {"x-rapidapi-key": api_key, "x-rapidapi-host": api_host}
         logging.info("Chiamata API reale in corso...")
         try:
-            response = requests.get(api_endpoint, params=params, timeout=60)
+            response = requests.get(api_endpoint, headers=headers, timeout=60)
             if not response.ok:
                 # Gestisce errori HTTP
                 msg = f"Errore API! Status: {response.status_code}, Body: {response.text}"
