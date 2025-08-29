@@ -7,7 +7,15 @@ from app.telegram.utils.telegram_notifier import send_telegram_message, get_moni
 from app.config.config import load_config
 
 # Configura logging
-logging.basicConfig(level=logging.INFO)
+log_filename = f"import_csv_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_filename),  # Scrive i log su un file
+        logging.StreamHandler()  # Mantiene l'output su console
+    ]
+)
 
 def import_csv_folder():
     """
@@ -74,13 +82,15 @@ def import_csv_folder():
                 row_num += 1
                 try:
                     # Adatta qui all'ordine delle colonne del tuo CSV!
-                    collection_identifier = row[0]
-                    latest_floor_date = row[1]
+                    chain = row[0]
+                    collection_identifier = row[1]
+                    latest_floor_date = row[3]
+                    floor_native = row[4]
                     # ... aggiungi qui l'extract degli altri campi necessari per la tua tabella ...
 
                     # Normalizza la data (assumendo sia 'YYYY-MM-DD')
                     try:
-                        date_obj = datetime.strptime(latest_floor_date, "%Y-%m-%d")
+                        date_obj = datetime.strptime(latest_floor_date, "%Y-%m-%d %H:%M:%S%z")
                         norm_date = date_obj.strftime("%Y-%m-%d")
                     except Exception as e:
                         row_errors += 1
@@ -97,14 +107,14 @@ def import_csv_folder():
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """
                     values = (
-                        row[1],               # 1: collection_identifier (non presente nel CSV storico)
-                        row[2],             # 2: contract_address (estratto dal nome file)
+                        collection_identifier,     # 1: collection_identifier (non presente nel CSV storico)
+                        contract_address,          # 2: contract_address (estratto dal nome file)
                         None,               # 3: slug (non presente nel CSV storico)
                         norm_date,          # 4: latest_floor_date (data dal CSV col 1)
                         None,               # 5: latest_floor_timestamp (non presente nel CSV storico)
-                        floor_native_value, # 6: floor_native (valore float dal CSV col 2)
+                        floor_native,       # 6: floor_native (valore float dal CSV col 2)
                         None,               # 7: floor_usd (non presente nel CSV storico)
-                        row[0],               # 8: chain (non presente nel CSV storico)
+                        chain,              # 8: chain (non presente nel CSV storico)
                         None,               # 9: chain_currency_symbol (non presente nel CSV storico)
                         None,               # 10: marketplace_source (non presente nel CSV storico)
                         None,               # 11: ranking (non presente nel CSV storico)
