@@ -195,3 +195,41 @@ def format_golden_cross_monthly_recap_msg(
         rows.append(row)
 
     return f"{header}\n\n" + "\n\n".join(rows) if rows else f"{header}\n\nNessuna Golden Cross rilevata nell'ultimo mese."
+
+
+def format_golden_cross_x_msg(obj) -> str:
+    """
+    Create a concise Golden Cross message for X, optimized for 280 characters.
+    Rounds floor_native to 4 decimals, floor_usd to 2 decimals, MA short/long to 4 decimals.
+    Uses dynamic MA periods and appropriate currency suffix.
+    """
+    floor_native = f"{obj.get('floor_native', 0):.4f}" if obj.get('floor_native') is not None else "N/A"
+    floor_usd = f"{obj.get('floor_usd', 0):.2f}" if obj.get('floor_usd') is not None else "N/A"
+    ma_short = f"{obj.get('ma_short', 0):.4f}" if obj.get('ma_short') is not None else "N/A"
+    ma_long = f"{obj.get('ma_long', 0):.4f}" if obj.get('ma_long') is not None else "N/A"
+
+    # Dynamic MA periods
+    period_short = obj.get('ma_short_period', "short")
+    period_long = obj.get('ma_long_period', "long")
+
+    # Currency suffix for MA
+    currency = obj.get('chain_currency_symbol', '') if obj.get('is_native', 1) in (1, "1", True) else "USD"
+
+    # Collection slug for mention and hashtag
+    slug = obj.get('slug', 'Unknown')
+    collection_name = obj.get('name', slug)
+    x_handle = obj.get('x_handle', None)
+    slug_mention = f"@{x_handle}" if x_handle is not None else slug
+
+    # Construct the message
+    msg = (
+        f"🚨 GOLDEN CROSS ALERT! 🚀\n\n"
+        f"{collection_name} by {slug_mention} NFTs on #{obj.get('chain', 'N/A')} signal a BULLISH trend!\n"
+        f"📈 MA{period_short} ({ma_short} {currency}) crossed above MA{period_long} ({ma_long} {currency}). "
+        f"Floor: {floor_native} {currency} (~${floor_usd}). "
+        f"{obj.get('total_supply', 'N/A')} supply, {obj.get('unique_owners', 'N/A')} owners, {obj.get('listed_count', 'N/A')} listed.\n\n"
+        f"Snag one here: {obj.get('best_price_url', 'Link marketplace N/A')} \n\n"
+        f"#NFTs #{obj.get('chain', 'N/A')} #{slug}"
+    )
+
+    return msg
