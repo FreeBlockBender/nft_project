@@ -22,6 +22,8 @@ async def start_chart_usd(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         [InlineKeyboardButton("3 mesi", callback_data="90")],
         [InlineKeyboardButton("6 mesi", callback_data="180")],
         [InlineKeyboardButton("1 anno", callback_data="365")],
+        [InlineKeyboardButton("2 anni", callback_data="730")],
+        [InlineKeyboardButton("3 anni", callback_data="1095")],
     ]
     await update.message.reply_text(
         "Seleziona il range di giorni per il grafico (USD):", 
