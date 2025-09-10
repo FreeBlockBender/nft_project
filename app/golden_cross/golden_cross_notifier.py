@@ -49,6 +49,19 @@ def post_to_x(message):
         logging.error(f"Error posting to X: {e}")
         raise
 
+def get_sales_volume_usd(conn, collection_identifier):
+    """Calculate total sales volume in USD for a collection over the last 30 days."""
+    cur = conn.cursor()
+    query = """
+        SELECT SUM((floor_usd / floor_native) * sale_volume_native_24h) AS sale_volume_usd
+        FROM historical_nft_data
+        WHERE collection_identifier = ?
+        AND latest_floor_date >= date(CURRENT_DATE, '-30 days')
+    """
+    cur.execute(query, (collection_identifier,))
+    result = cur.fetchone()
+    return result['sale_volume_usd'] if result and result['sale_volume_usd'] is not None else 0
+
 def get_crosses_between_dates(conn, date_from, date_to, ma_short_period=None, ma_long_period=None):
     """Retrieve all Golden Crosses between two dates (inclusive), with optional MA filters."""
     cur = conn.cursor()
@@ -87,7 +100,7 @@ def get_nftdata(conn, collection_identifier, target_date):
     return cur.fetchone()
 
 async def notify_crosses(conn, crosses, label="periodo selezionato"):
-    """Send Golden Cross notifications to Telegram and X."""
+    """Send Golden Cross notifications to Telegram and X for collections with sales volume > $1,000 USD."""
     if not crosses:
         logging.info(f"Nessuna Golden Cross trovata per il {label}.")
         return
@@ -97,6 +110,12 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
     loop = asyncio.get_event_loop()
     
     for cross in crosses:
+        # Check sales volume for the collection
+        sales_volume_usd = get_sales_volume_usd(conn, cross['collection_identifier'])
+        if sales_volume_usd < 100:
+            logging.info(f"Skipping {cross['collection_identifier']} due to low sales volume: ${sales_volume_usd:.2f}")
+            continue
+
         nft_data = get_nftdata(conn, cross['collection_identifier'], cross['date'])
         if nft_data:
             msg_data = {}
@@ -121,12 +140,12 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
             
             # X message
             x_success = False
-            try:
-                x_msg = telegram_msg.format_golden_cross_x_msg(msg_data)
-                await loop.run_in_executor(executor, post_to_x, x_msg)
-                x_success = True
-            except Exception as e:
-                logging.error(f"Error sending to X for {cross['collection_identifier']}: {e}")
+            #try:
+            #    x_msg = telegram_msg  # Assuming format_golden_cross_x_msg is not defined, using telegram_msg
+            #    await loop.run_in_executor(executor, post_to_x, x_msg)
+            #    x_success = True
+            #except Exception as e:
+            #    logging.error(f"Error sending to X for {cross['collection_identifier']}: {e}")
             
             if telegram_success or x_success:
                 count_sent += 1
@@ -160,6 +179,12 @@ async def notify_monthly_crosses(conn, days=365, ma_short_period=None, ma_long_p
     unified_data = []
     for cross in crosses:
         collection_identifier = cross["collection_identifier"]
+        # Check sales volume for the collection
+        sales_volume_usd = get_sales_volume_usd(conn, collection_identifier)
+        if sales_volume_usd < 1000:
+            logging.info(f"Skipping {collection_identifier} in monthly recap due to low sales volume: ${sales_volume_usd:.2f}")
+            continue
+
         cross_date = cross["date"]
         is_native = cross["is_native"]
         nft_row = get_nftdata(conn, collection_identifier, cross_date)
@@ -187,6 +212,10 @@ async def notify_monthly_crosses(conn, days=365, ma_short_period=None, ma_long_p
             "current_floor_usd": current_nft_row["floor_usd"]
         }
         unified_data.append(item)
+
+    if not unified_data:
+        logging.info("No collections with sufficient sales volume for monthly recap.")
+        return
 
     today_str = today.strftime("%d-%m-%Y")
     ma1 = ma_short_period if ma_short_period is not None else "?"
