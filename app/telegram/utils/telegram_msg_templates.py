@@ -199,7 +199,7 @@ def format_golden_cross_monthly_recap_msg(
 
 def format_golden_cross_x_msg(obj) -> str:
     """
-    Create a concise Golden Cross message for X, optimized for 280 characters.
+    Create a concise Golden Cross message for X.
     Rounds floor_native to 4 decimals, floor_usd to 2 decimals, MA short/long to 4 decimals.
     Uses dynamic MA periods and appropriate currency suffix.
     """
@@ -225,11 +225,12 @@ def format_golden_cross_x_msg(obj) -> str:
     msg = (
         f"🚨 GOLDEN CROSS ALERT! 🚀\n\n"
         f"{collection_name} by {slug_mention} NFTs on #{obj.get('chain', 'N/A')} signal a BULLISH trend!\n"
-        f"📈 MA{period_short} ({ma_short} {currency}) crossed above MA{period_long} ({ma_long} {currency}). "
+        f"📈 MA{period_short} ({ma_short} {currency}) crossed above MA{period_long} ({ma_long} {currency}).\n"
         f"Floor: {floor_native} {currency} (~${floor_usd}). "
         f"{obj.get('total_supply', 'N/A')} supply, {obj.get('unique_owners', 'N/A')} owners, {obj.get('listed_count', 'N/A')} listed.\n\n"
         f"Snag one here: {obj.get('best_price_url', 'Link marketplace N/A')} \n\n"
-        f"#NFTs #{obj.get('chain', 'N/A')} #{slug}"
+        f"Join the community: https://t.me/NFTAlertXComm \n\n"
+        f"#NFTCommunity #NFTs #{obj.get('chain', 'N/A')} #{slug}"
     )
 
     return msg

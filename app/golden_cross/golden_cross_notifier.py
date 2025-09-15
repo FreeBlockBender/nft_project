@@ -10,7 +10,8 @@ from app.config.config import load_config
 from app.telegram.utils.telegram_notifier import send_telegram_message, get_gc_draft_chat_id
 from app.telegram.utils.telegram_msg_templates import (
     format_golden_cross_msg,
-    format_golden_cross_monthly_recap_msg
+    format_golden_cross_monthly_recap_msg,
+    format_golden_cross_x_msg
 )
 
 # Configure logging
@@ -40,8 +41,6 @@ def post_to_x(message):
             access_token=ACCESS_TOKEN,
             access_token_secret=ACCESS_TOKEN_SECRET
         )
-        if len(message) > 280:
-            message = message[:277] + "..."
         client.create_tweet(text=message)
         logging.info(f"Successfully posted to X: {message[:50]}...")
         return True
@@ -82,7 +81,7 @@ def get_crosses_by_date(conn, target_date):
     cur = conn.cursor()
     cur.execute("""
         SELECT * FROM historical_golden_crosses
-        WHERE date = ?
+        WHERE date = ? 
     """, (target_date,))
     return cur.fetchall()
 
@@ -141,7 +140,7 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
             # X message
             x_success = False
             try:
-                x_msg = telegram_msg  # Assuming format_golden_cross_x_msg is not defined, using telegram_msg
+                x_msg = format_golden_cross_x_msg(msg_data)  # Assuming format_golden_cross_x_msg is not defined, using telegram_msg
                 await loop.run_in_executor(executor, post_to_x, x_msg)
                 x_success = True
             except Exception as e:
