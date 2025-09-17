@@ -36,8 +36,8 @@ async def check_daily_insert(update: Update, context: ContextTypes.DEFAULT_TYPE)
     conn.close()
     x = result[0] if result else 0
     msg = (
-        f"{x} record inseriti in data odierna" if query_date == "now"
-        else f"{x} record inseriti in data {query_date}"
+        f"{x} inserted records today" if query_date == "now"
+        else f"{x} inserted records in date: {query_date}"
     )
     await update.message.reply_text(msg)
 
