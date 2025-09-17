@@ -90,10 +90,10 @@ def create_nft_chart(slug: str, data: list, field: str, chain: str, days: int, c
         plt.plot(interp_dates, sma_values, label=label, color=colors[label], linewidth=1.5)
     
     # Personalizza gli assi e la griglia
-    plt.title(f"📈 Floor Price e Medie Mobili per {slug} ({chain}) - {days} giorni", color="white")
-    plt.xlabel("Data", color="white")
+    plt.title(f"📈 Floor Price and Moving Averages for {slug} ({chain}) - {days} days", color="white")
+    plt.xlabel("Date", color="white")
     # Usa chain_currency_symbol per nft_chart_native, altrimenti USD
-    y_label = f"Prezzo ({chain_currency_symbol if field == 'floor_native' and chain_currency_symbol else chain.upper() if field == 'floor_native' else 'USD'})"
+    y_label = f"Floor Price ({chain_currency_symbol if field == 'floor_native' and chain_currency_symbol else chain.upper() if field == 'floor_native' else 'USD'})"
     plt.ylabel(y_label, color="white")
     plt.grid(True, color="#4B5563", linestyle='--', alpha=0.5)  # Griglia leggera
     plt.xticks(rotation=45, color="white")

@@ -8,11 +8,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await access_denied(update)
         return
     await update.message.reply_text(
-        "Benvenuto o Bentornato! :)\n\n"
-        "Con questo bot potrai:\n"
-        "🔍 Cercare le collezioni per chain, categoria o prefisso.\n"
-        "ℹ️ Visualizzare i metadati di uno slug.\n"
-        "📈 Consultare le diverse medie mobili di una collection.\n\n"
+        "Welcome or Welcome Back! :)\n\n"
+        "With this bot, you can:\n"
+        "🔍 Search for NFT collections by chain, category, or prefix.\n"
+        "ℹ️ View the metadata of a slug.\n"
+        "📈 Check the various moving averages of a collection.\n\n"
         "CEO: Ser Basato 💀\n"
         "CTO: Ser Muay Thai 🥊 🇹🇭\n"
         "© All rights reserved\n",
