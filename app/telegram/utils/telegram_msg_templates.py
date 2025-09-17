@@ -235,7 +235,8 @@ def format_golden_cross_x_msg(obj) -> str:
         f"Floor: {floor_native} {currency} (~${floor_usd}). "
         f"{obj.get('total_supply', 'N/A')} supply, {obj.get('unique_owners', 'N/A')} owners, {obj.get('listed_count', 'N/A')} listed.\n\n"
         f"Snag one here: {obj.get('best_price_url', 'Link marketplace N/A')} \n\n"
-        f"#NFTs #{obj.get('chain', 'N/A')} #{slug}"
+        f"Join the community: https://t.me/NFTAlertXComm \n\n"
+        f"#NFTCommunity #NFTs #{obj.get('chain', 'N/A')} #{hashtag_name} #GoldenCross"
     )
 
     return msg
