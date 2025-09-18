@@ -1,6 +1,7 @@
 
 # app/utils/telegram_msg_templates.py
 from datetime import datetime, date
+import random
 
 def get_csv_import_summary(total_files_found: int, files_processed_successfully: int, files_skipped: int, total_row_errors: int) -> str:
     """
@@ -227,6 +228,16 @@ def format_golden_cross_x_msg(obj) -> str:
     # Safe hashtag generation, removing spaces and hyphens
     hashtag_name = collection_name.replace(' ', '').replace('-', '') if isinstance(collection_name, str) else 'Unknown'
 
+    cta_phrases = [
+        "Snag one here",
+        "Check it out",
+        "Grab yours now",
+        "Dive in here",
+        "Explore now"
+    ]
+
+    cta_phrase = random.choice(cta_phrases)
+
     # Construct the message
     msg = (
         f"🚨 GOLDEN CROSS ALERT! 🚀\n\n"
@@ -234,7 +245,7 @@ def format_golden_cross_x_msg(obj) -> str:
         f"📈 MA{period_short} ({ma_short} {currency}) crossed above MA{period_long} ({ma_long} {currency}).\n"
         f"Floor: {floor_native} {currency_floor} (~${floor_usd}). "
         f"{obj.get('total_supply', 'N/A')} supply, {obj.get('unique_owners', 'N/A')} owners, {obj.get('listed_count', 'N/A')} listed.\n\n"
-        f"Snag one here: {obj.get('best_price_url', 'Link marketplace N/A')} \n\n"
+        f"{cta_phrase}: {obj.get('best_price_url', 'Link marketplace N/A')} \n\n"
         f"Join the community: https://t.me/NFTAlertXComm \n\n"
         f"#NFTCommunity #NFTs #{obj.get('chain', 'N/A')} #{hashtag_name} #GoldenCross #CryptoArt"
     )
