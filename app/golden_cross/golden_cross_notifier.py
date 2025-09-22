@@ -140,7 +140,7 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
             # X message
             x_success = False
             try:
-                x_msg = format_golden_cross_x_msg(msg_data)  # Assuming format_golden_cross_x_msg is not defined, using telegram_msg
+                x_msg = format_golden_cross_x_msg(msg_data) 
                 await loop.run_in_executor(executor, post_to_x, x_msg)
                 x_success = True
             except Exception as e:
