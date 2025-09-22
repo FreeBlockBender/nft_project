@@ -17,16 +17,16 @@ async def start_chart_native(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     context.user_data["command"] = "nft_chart_native"
     keyboard = [
-        [InlineKeyboardButton("7 giorni", callback_data="7")],
-        [InlineKeyboardButton("1 mese", callback_data="30")],
-        [InlineKeyboardButton("3 mesi", callback_data="90")],
-        [InlineKeyboardButton("6 mesi", callback_data="180")],
-        [InlineKeyboardButton("1 anno", callback_data="365")],
-        [InlineKeyboardButton("2 anni", callback_data="730")],
-        [InlineKeyboardButton("3 anni", callback_data="1095")],
+        [InlineKeyboardButton("7D", callback_data="7")],
+        [InlineKeyboardButton("1M", callback_data="30")],
+        [InlineKeyboardButton("3M", callback_data="90")],
+        [InlineKeyboardButton("6M", callback_data="180")],
+        [InlineKeyboardButton("1Y", callback_data="365")],
+        [InlineKeyboardButton("2Y", callback_data="730")],
+        [InlineKeyboardButton("3Y", callback_data="1095")],
     ]
     await update.message.reply_text(
-        "Seleziona il range di giorni per il grafico (native):", 
+        "Choose the time range for the chart display (native):", 
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
     return SELECT_DAYS
@@ -35,7 +35,7 @@ async def select_days_native(update: Update, context: ContextTypes.DEFAULT_TYPE)
     query = update.callback_query
     await query.answer()
     context.user_data["days"] = int(query.data)
-    await query.edit_message_text("Inserisci lo slug della collezione NFT:")
+    await query.edit_message_text("Insert the slug of the NFT collection:")
     return ENTER_SLUG
 
 async def enter_slug_native(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -51,7 +51,7 @@ async def enter_slug_native(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     cur.execute("SELECT collection_identifier, chain FROM nft_collections WHERE slug = ?", (slug,))
     row = cur.fetchone()
     if not row:
-        await update.message.reply_text("Slug non trovato.")
+        await update.message.reply_text("Slug not found.")
         conn.close()
         return ConversationHandler.END
     collection_identifier, chain = row
@@ -67,21 +67,21 @@ async def enter_slug_native(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     conn.close()
 
     if not data:
-        await update.message.reply_text(f"Nessun dato disponibile per {slug} negli ultimi {days} giorni.")
+        await update.message.reply_text(f"No data available for {slug} in the last {days} days.")
         return ConversationHandler.END
 
     if len(data) < days:
-        await update.message.reply_text(f"Attenzione: Solo {len(data)} giorni di dati disponibili, meno dei {days} giorni richiesti.")
+        await update.message.reply_text(f"Warning: Only {len(data)} days of data available, less than the {days} days requested.")
 
     chart = create_nft_chart(slug, data, "floor_native", chain, days, chain_currency_symbol)
     if not chart:
-        await update.message.reply_text("Errore nella generazione del grafico.")
+        await update.message.reply_text("Error in generating the chart.")
         return ConversationHandler.END
 
     currency = chain_currency_symbol or chain.upper()
     await update.message.reply_photo(
         photo=chart,
-        caption=f"Grafico Floor Price ({currency}) - {slug} - Ultimi {days} giorni",
+        caption=f"Floor Price Chart ({currency}) - {slug} - Last {days} days",
         reply_markup=ReplyKeyboardRemove()
     )
     return ConversationHandler.END
