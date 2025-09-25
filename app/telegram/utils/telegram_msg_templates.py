@@ -245,7 +245,6 @@ def format_golden_cross_x_msg(obj) -> str:
         f"📈 MA{period_short} ({ma_short} {currency}) crossed above MA{period_long} ({ma_long} {currency}). "
         f"Floor: {floor_native} {currency_floor} (~${floor_usd}). "
         f"{obj.get('total_supply', 'N/A')} supply, {obj.get('unique_owners', 'N/A')} owners, {obj.get('listed_count', 'N/A')} listed.\n\n"
-        f"Join the community: https://t.me/NFTAlertXComm \n\n"
         f"#NFTCommunity #NFTs #{obj.get('chain', 'N/A')} #{hashtag_name} #GoldenCross #CryptoArt \n\n"
         f"{cta_phrase}: {obj.get('best_price_url')} \n\n" if obj.get('best_price_url') is not None else "\n\n"
     )
