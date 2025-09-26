@@ -223,7 +223,7 @@ def format_golden_cross_x_msg(obj) -> str:
     slug = obj.get('slug', 'Unknown')
     collection_name = obj.get('name', slug)
     x_handle = obj.get('x_page', None)
-    slug_mention = f"@{x_handle}" if x_handle is not None else slug
+    slug_mention = f"{x_handle}" if x_handle is not None else slug
 
     # Safe hashtag generation, removing spaces and hyphens
     hashtag_name = collection_name.replace(' ', '').replace('-', '') if isinstance(collection_name, str) else 'Unknown'
@@ -245,8 +245,9 @@ def format_golden_cross_x_msg(obj) -> str:
         f"📈 MA{period_short} ({ma_short} {currency}) crossed above MA{period_long} ({ma_long} {currency}). "
         f"Floor: {floor_native} {currency_floor} (~${floor_usd}). "
         f"{obj.get('total_supply', 'N/A')} supply, {obj.get('unique_owners', 'N/A')} owners, {obj.get('listed_count', 'N/A')} listed.\n\n"
-        f"#NFTCommunity #NFTs #{obj.get('chain', 'N/A')} #{hashtag_name} #GoldenCross #CryptoArt \n\n"
-        f"{cta_phrase}: {obj.get('best_price_url')} \n\n" if obj.get('best_price_url') is not None else "\n\n"
+        f"{cta_phrase}: {obj.get('best_price_url')} \n\n" if obj.get('best_price_url') is not None else ""
+        f"\n\n #NFTCommunity #NFTs #{obj.get('chain', 'N/A')} #{hashtag_name} #GoldenCross #CryptoArt \n\n"
+
     )
 
     return msg
