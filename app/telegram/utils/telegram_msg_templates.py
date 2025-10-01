@@ -223,7 +223,7 @@ def format_golden_cross_x_msg(obj) -> str:
     slug = obj.get('slug', 'Unknown')
     collection_name = obj.get('name', slug)
     x_handle = obj.get('x_page', None)
-    slug_mention = f"@{x_handle}" if x_handle is not None else slug
+    slug_mention = f"{x_handle}" if x_handle is not None else slug
 
     # Safe hashtag generation, removing spaces and hyphens
     hashtag_name = collection_name.replace(' ', '').replace('-', '') if isinstance(collection_name, str) else 'Unknown'
@@ -241,13 +241,13 @@ def format_golden_cross_x_msg(obj) -> str:
     # Construct the message
     msg = (
         f"🚨 GOLDEN CROSS ALERT! 🚀\n\n"
-        f"{collection_name} by {slug_mention} NFTs on #{obj.get('chain', 'N/A')} signal a BULLISH trend!\n"
-        f"📈 MA{period_short} ({ma_short} {currency}) crossed above MA{period_long} ({ma_long} {currency}). "
+        f"{collection_name} by {slug_mention} NFTs on #{obj.get('chain', 'N/A')} signal a BULLISH trend!\n\n"
+        f"📈 MA{period_short} ({ma_short} {currency}) crossed above MA{period_long} ({ma_long} {currency}).\n"
         f"Floor: {floor_native} {currency_floor} (~${floor_usd}). "
         f"{obj.get('total_supply', 'N/A')} supply, {obj.get('unique_owners', 'N/A')} owners, {obj.get('listed_count', 'N/A')} listed.\n\n"
-        f"{cta_phrase}: {obj.get('best_price_url')} \n\n" if obj.get('best_price_url') is not None else "\n\n"
-        f"Join the community: https://t.me/NFTAlertXComm \n\n"
-        f"#NFTCommunity #NFTs #{obj.get('chain', 'N/A')} #{hashtag_name} #{slug_mention} #GoldenCross #CryptoArt"
+        f"#NFTCommunity #NFTs #{obj.get('chain', 'N/A')} #{hashtag_name} #GoldenCross #CryptoArt \n\n"
+        f"{cta_phrase}: {obj.get('best_price_url')}" if obj.get('best_price_url') is not None else ""
+
     )
 
     return msg
