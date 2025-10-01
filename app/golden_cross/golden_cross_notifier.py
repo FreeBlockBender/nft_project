@@ -115,39 +115,56 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
             logging.info(f"Skipping {cross['collection_identifier']} due to low sales volume: ${sales_volume_usd:.2f}")
             continue
 
+        # Fetch NFT data from historical_nft_data
         nft_data = get_nftdata(conn, cross['collection_identifier'], cross['date'])
-        if nft_data:
-            msg_data = {}
-            for k in cross.keys():
-                msg_data[f"historical_golden_crosses.{k}"] = cross[k]
-                msg_data[k] = cross[k]
-            for k in nft_data.keys():
-                msg_data[f"historical_nft_data.{k}"] = nft_data[k]
-                msg_data[k] = nft_data[k]
-            
-            # Telegram message
-            telegram_success = False
-            telegram_msg = format_golden_cross_msg(msg_data)
-            try:
-                result = await send_telegram_message(telegram_msg, chat_id)
-                logging.info(f"Sent Telegram message for {cross['collection_identifier']}")
-                telegram_success = True
-            except TelegramError as e:
-                logging.error(f"Error sending to Telegram for {cross['collection_identifier']}: {e}")
-            except Exception as e:
-                logging.error(f"Unexpected error in Telegram send for {cross['collection_identifier']}: {e}")
-            
-            # X message
-            x_success = False
-            try:
-                x_msg = format_golden_cross_x_msg(msg_data) 
-                await loop.run_in_executor(executor, post_to_x, x_msg)
-                x_success = True
-            except Exception as e:
-                logging.error(f"Error sending to X for {cross['collection_identifier']}: {e}")
-            
-            if telegram_success or x_success:
-                count_sent += 1
+        if not nft_data:
+            logging.info(f"No NFT data found for {cross['collection_identifier']} on {cross['date']}")
+            continue
+
+        # Fetch x_page from nft_collections
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT x_page
+            FROM nft_collections
+            WHERE collection_identifier = ?
+            LIMIT 1
+        """, (cross['collection_identifier'],))
+        collection_data = cur.fetchone()
+        x_page = collection_data['x_page'] if collection_data and collection_data['x_page'] is not None else None
+
+        # Prepare message data
+        msg_data = {}
+        for k in cross.keys():
+            msg_data[f"historical_golden_crosses.{k}"] = cross[k]
+            msg_data[k] = cross[k]
+        for k in nft_data.keys():
+            msg_data[f"historical_nft_data.{k}"] = nft_data[k]
+            msg_data[k] = nft_data[k]
+        msg_data['x_page'] = x_page  # Add x_page to msg_data
+
+        # Telegram message
+        telegram_success = False
+        telegram_msg = format_golden_cross_msg(msg_data)
+        try:
+            result = await send_telegram_message(telegram_msg, chat_id)
+            logging.info(f"Sent Telegram message for {cross['collection_identifier']}")
+            telegram_success = True
+        except TelegramError as e:
+            logging.error(f"Error sending to Telegram for {cross['collection_identifier']}: {e}")
+        except Exception as e:
+            logging.error(f"Unexpected error in Telegram send for {cross['collection_identifier']}: {e}")
+        
+        # X message
+        x_success = False
+        try:
+            x_msg = format_golden_cross_x_msg(msg_data)
+            await loop.run_in_executor(executor, post_to_x, x_msg)
+            x_success = True
+        except Exception as e:
+            logging.error(f"Error sending to X for {cross['collection_identifier']}: {e}")
+        
+        if telegram_success or x_success:
+            count_sent += 1
     
     logging.info(f"Inviati {count_sent} messaggi Golden Cross su Telegram e/o X ({label}).")
 
