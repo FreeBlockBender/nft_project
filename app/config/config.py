@@ -30,4 +30,5 @@ def load_config():
         "SMA_100_MISSING_THRESH": os.getenv("SMA_100_MISSING_THRESH"),
         "SMA_200_MISSING_THRESH": os.getenv("SMA_200_MISSING_THRESH"),
         "ALLOWED_TELEGRAM_IDS": os.getenv("ALLOWED_TELEGRAM_IDS"),
+        "MNEMONIC": os.getenv("MNEMONIC")  # Farcaster mnemonic
     }

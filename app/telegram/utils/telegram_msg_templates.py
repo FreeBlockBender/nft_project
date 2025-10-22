@@ -251,3 +251,48 @@ def format_golden_cross_x_msg(obj) -> str:
     )
 
     return msg
+
+
+def format_golden_cross_farcaster_msg(obj) -> str:
+    """
+    Create a concise Golden Cross message for Farcaster, for Base chain NFTs.
+    Handles farcaster_page as channel (/name) or user (@name).
+    Rounds floor_native to 4 decimals, floor_usd to 2 decimals, MA short/long to 4 decimals.
+    Uses dynamic MA periods, marketplace_url, and fits 320 chars.
+    """
+    floor_native = f"{obj.get('floor_native', 0):.4f}" if obj.get('floor_native') is not None else "N/A"
+    floor_usd = f"{obj.get('floor_usd', 0):.2f}" if obj.get('floor_usd') is not None else "N/A"
+    ma_short = f"{obj.get('ma_short', 0):.4f}" if obj.get('ma_short') is not None else "N/A"
+    ma_long = f"{obj.get('ma_long', 0):.4f}" if obj.get('ma_long') is not None else "N/A"
+
+    period_short = obj.get('ma_short_period', "short")
+    period_long = obj.get('ma_long_period', "long")
+    currency = obj.get('chain_currency_symbol', 'ETH') if obj.get('is_native', 1) in (1, "1", True) else "USD"
+    currency_floor = obj.get('chain_currency_symbol', 'ETH')
+    slug = obj.get('slug', 'Unknown')
+    collection_name = obj.get('name', slug)
+    
+    # Handle farcaster_page as channel or user
+    farcaster_page = obj.get('farcaster_page', None)
+    if farcaster_page and farcaster_page.startswith('/'):
+        # Channel (e.g., /base)
+        slug_mention = f"{farcaster_page[1:]}"  # e.g., "base channel"
+    elif farcaster_page and farcaster_page.startswith('@'):
+        # User handle (e.g., @CoolBaseNFTs)
+        slug_mention = farcaster_page
+    else:
+        slug_mention = slug
+
+    hashtag_name = collection_name.replace(' ', '').replace('-', '') if isinstance(collection_name, str) else 'Unknown'
+
+    cta_phrases = ["Snag one", "Check it", "Grab now", "Dive in", "Explore"]
+    cta_phrase = random.choice(cta_phrases)
+
+    msg = (
+        f"🚨 GOLDEN CROSS on {collection_name} by {slug_mention}! 🚀\n"
+        f"📈 MA{period_short} ({ma_short} {currency}) > MA{period_long} ({ma_long} {currency}).\n"
+        f"Floor: {floor_native} {currency_floor} (~${floor_usd}). "
+        f"{cta_phrase}: {obj.get('marketplace_url', '')}"
+    )
+    return msg[:320]
+
