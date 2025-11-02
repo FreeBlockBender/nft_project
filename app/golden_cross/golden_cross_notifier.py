@@ -116,7 +116,7 @@ def get_nftdata(conn, collection_identifier, target_date):
     return cur.fetchone()
 
 async def notify_crosses(conn, crosses, label="periodo selezionato"):
-    """Send Golden Cross notifications to Telegram and X for collections with sales volume > $1,000 USD."""
+    """Send Golden Cross notifications to Telegram, X, and Farcaster (with smart channel logic)."""
     if not crosses:
         logging.info(f"Nessuna Golden Cross trovata per il {label}.")
         return
@@ -126,19 +126,13 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
     loop = asyncio.get_event_loop()
     
     for cross in crosses:
-        # Check sales volume for the collection
-        #sales_volume_usd = get_sales_volume_usd(conn, cross['collection_identifier'])
-        #if sales_volume_usd < 500:
-        #    logging.info(f"Skipping {cross['collection_identifier']} due to low sales volume: ${sales_volume_usd:.2f}")
-        #    continue
-
         # Fetch NFT data from historical_nft_data
         nft_data = get_nftdata(conn, cross['collection_identifier'], cross['date'])
         if not nft_data:
             logging.info(f"No NFT data found for {cross['collection_identifier']} on {cross['date']}")
             continue
 
-        # Fetch x_page, farcaster_page, and marketplace_url from nft_collections
+        # Fetch collection metadata
         cur = conn.cursor()
         cur.execute("""
             SELECT x_page, farcaster_page, marketplace_url
@@ -184,21 +178,38 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
         except Exception as e:
             logging.error(f"Error sending to X for {cross['collection_identifier']}: {e}")
         
-        # Farcaster message 
+        # === FARCASTER LOGIC: Smart Channel Posting ===
         farcaster_success = False
         try:
             farcaster_msg = format_golden_cross_farcaster_msg(msg_data)
-            # Post to channel if farcaster_page is a channel (starts with /)
-            channel = farcaster_page[1:] if farcaster_page and farcaster_page.startswith('/') else None
-            await loop.run_in_executor(executor, post_to_farcaster, farcaster_msg, channel)
-            farcaster_success = True
+            chain = nft_data['chain'].lower() if nft_data and nft_data['chain'] else None
+
+            # Determine target channels
+            channels = set()  # Use set to avoid duplicates
+
+            # 1. Add collection-specific channel if valid
+            if farcaster_page and farcaster_page.startswith('/'):
+                collection_channel = farcaster_page[1:]  # Remove leading '/'
+                channels.add(collection_channel)
+
+            # 2. Add chain-specific channel if on Base
+            channels.add(chain)
+
+            # Post to all determined channels
+            for channel in channels:
+                await loop.run_in_executor(executor, post_to_farcaster, farcaster_msg, channel)
+                logging.info(f"Posted to Farcaster channel: /{channel}")
+
+            farcaster_success = bool(channels)  # True if at least one channel was posted to
+
         except Exception as e:
             logging.error(f"Error sending to Farcaster for {cross['collection_identifier']}: {e}")
                 
         if telegram_success or x_success or farcaster_success:
             count_sent += 1
     
-    logging.info(f"{count_sent} Golden Cross messagges sent to Telegram/X/Farcaster ({label}).")
+    logging.info(f"{count_sent} Golden Cross messages sent to Telegram/X/Farcaster ({label}).")
+
 
 async def notify_today_crosses(conn):
     """Notify today's Golden Crosses on Telegram and X."""
