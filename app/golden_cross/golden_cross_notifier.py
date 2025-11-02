@@ -65,7 +65,7 @@ def post_to_farcaster(message, channel=None):
         raise
 
 
-def get_sales_volume_usd(conn, collection_identifier):
+#def get_sales_volume_usd(conn, collection_identifier):
     """Calculate total sales volume in USD for a collection over the last 30 days."""
     cur = conn.cursor()
     query = """
@@ -108,7 +108,7 @@ def get_nftdata(conn, collection_identifier, target_date):
     cur.execute("""
         SELECT slug, ranking, floor_native, floor_usd,
                contract_address, chain, chain_currency_symbol,
-               unique_owners, total_supply, listed_count
+               unique_owners, total_supply, listed_count, best_price_url
         FROM historical_nft_data
         WHERE collection_identifier = ? AND latest_floor_date = ?
         LIMIT 1
@@ -127,10 +127,10 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
     
     for cross in crosses:
         # Check sales volume for the collection
-        sales_volume_usd = get_sales_volume_usd(conn, cross['collection_identifier'])
-        if sales_volume_usd < 500:
-            logging.info(f"Skipping {cross['collection_identifier']} due to low sales volume: ${sales_volume_usd:.2f}")
-            continue
+        #sales_volume_usd = get_sales_volume_usd(conn, cross['collection_identifier'])
+        #if sales_volume_usd < 500:
+        #    logging.info(f"Skipping {cross['collection_identifier']} due to low sales volume: ${sales_volume_usd:.2f}")
+        #    continue
 
         # Fetch NFT data from historical_nft_data
         nft_data = get_nftdata(conn, cross['collection_identifier'], cross['date'])
@@ -161,7 +161,7 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
             msg_data[k] = nft_data[k]
         msg_data['x_page'] = x_page
         msg_data['farcaster_page'] = farcaster_page
-        msg_data['marketplace_url'] = marketplace_url  # Add marketplace_url
+        msg_data['marketplace_url'] = marketplace_url   
 
         # Telegram message
         telegram_success = False
@@ -184,22 +184,21 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
         except Exception as e:
             logging.error(f"Error sending to X for {cross['collection_identifier']}: {e}")
         
-        # Farcaster message (only for Base chain)
+        # Farcaster message 
         farcaster_success = False
-        if msg_data.get('chain') == 'base':
-            try:
-                farcaster_msg = format_golden_cross_farcaster_msg(msg_data)
-                # Post to channel if farcaster_page is a channel (starts with /)
-                channel = farcaster_page[1:] if farcaster_page and farcaster_page.startswith('/') else None
-                await loop.run_in_executor(executor, post_to_farcaster, farcaster_msg, channel)
-                farcaster_success = True
-            except Exception as e:
-                logging.error(f"Error sending to Farcaster for {cross['collection_identifier']}: {e}")
+        try:
+            farcaster_msg = format_golden_cross_farcaster_msg(msg_data)
+            # Post to channel if farcaster_page is a channel (starts with /)
+            channel = farcaster_page[1:] if farcaster_page and farcaster_page.startswith('/') else None
+            await loop.run_in_executor(executor, post_to_farcaster, farcaster_msg, channel)
+            farcaster_success = True
+        except Exception as e:
+            logging.error(f"Error sending to Farcaster for {cross['collection_identifier']}: {e}")
                 
         if telegram_success or x_success or farcaster_success:
             count_sent += 1
     
-    logging.info(f"Inviati {count_sent} messaggi Golden Cross su Telegram e/o X ({label}).")
+    logging.info(f"{count_sent} Golden Cross messagges sent to Telegram/X/Farcaster ({label}).")
 
 async def notify_today_crosses(conn):
     """Notify today's Golden Crosses on Telegram and X."""
@@ -229,10 +228,10 @@ async def notify_monthly_crosses(conn, days=365, ma_short_period=None, ma_long_p
     for cross in crosses:
         collection_identifier = cross["collection_identifier"]
         # Check sales volume for the collection
-        sales_volume_usd = get_sales_volume_usd(conn, collection_identifier)
-        if sales_volume_usd < 1000:
-            logging.info(f"Skipping {collection_identifier} in monthly recap due to low sales volume: ${sales_volume_usd:.2f}")
-            continue
+        #sales_volume_usd = get_sales_volume_usd(conn, collection_identifier)
+        #if sales_volume_usd < 1000:
+        #    logging.info(f"Skipping {collection_identifier} in monthly recap due to low sales volume: ${sales_volume_usd:.2f}")
+        #    continue
 
         cross_date = cross["date"]
         is_native = cross["is_native"]

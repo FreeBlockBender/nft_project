@@ -255,7 +255,7 @@ def format_golden_cross_x_msg(obj) -> str:
 
 def format_golden_cross_farcaster_msg(obj) -> str:
     """
-    Create a concise Golden Cross message for Farcaster, for Base chain NFTs.
+    Create a concise Golden Cross message for Farcaster.
     Handles farcaster_page as channel (/name) or user (@name).
     Rounds floor_native to 4 decimals, floor_usd to 2 decimals, MA short/long to 4 decimals.
     Uses dynamic MA periods, marketplace_url, and fits 320 chars.
@@ -283,8 +283,6 @@ def format_golden_cross_farcaster_msg(obj) -> str:
     else:
         slug_mention = slug
 
-    hashtag_name = collection_name.replace(' ', '').replace('-', '') if isinstance(collection_name, str) else 'Unknown'
-
     cta_phrases = ["Snag one", "Check it", "Grab now", "Dive in", "Explore"]
     cta_phrase = random.choice(cta_phrases)
 
@@ -292,7 +290,7 @@ def format_golden_cross_farcaster_msg(obj) -> str:
         f"🚨 GOLDEN CROSS on {collection_name} by {slug_mention}! 🚀\n"
         f"📈 MA{period_short} ({ma_short} {currency}) > MA{period_long} ({ma_long} {currency}).\n"
         f"Floor: {floor_native} {currency_floor} (~${floor_usd}). "
-        f"{cta_phrase}: {obj.get('marketplace_url', '')}"
+        f"{cta_phrase}: {obj.get('best_price_url', '')}"
     )
     return msg[:320]
 
