@@ -58,9 +58,9 @@ async def enter_slug_native(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
     cur.execute(
         "SELECT latest_floor_date, floor_native, chain_currency_symbol FROM historical_nft_data "
-        "WHERE collection_identifier IN(?,?) AND latest_floor_date >= date('now', ? || ' days') "
+        "WHERE collection_identifier IN (?,?) AND latest_floor_date >= date('now', ? || ' days') "
         "ORDER BY latest_floor_date ASC",
-        (collection_identifier,slug, -days)
+        (collection_identifier, slug.replace('-',''), -days)
     )
     data = cur.fetchall()
     chain_currency_symbol = next((r[2] for r in data if r[2]), None)
