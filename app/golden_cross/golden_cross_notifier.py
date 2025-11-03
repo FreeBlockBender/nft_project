@@ -6,7 +6,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import argparse
 import logging
-from farcaster import FarcasterClient
+from farcaster import Warpcast
 from app.config.config import load_config
 from app.telegram.utils.telegram_notifier import send_telegram_message, get_gc_draft_chat_id
 from app.telegram.utils.telegram_msg_templates import (
@@ -56,7 +56,7 @@ def post_to_x(message):
 def post_to_farcaster(message, channel=None):
     """Post a message to Farcaster, optionally to a specific channel."""
     try:
-        client = FarcasterClient(mnemonic=MNEMONIC)
+        client = Warpcast(mnemonic=MNEMONIC)
         response = client.post_cast(text=message, channel=channel)
         logging.info(f"Successfully posted to Farcaster: {message[:50]}... (Hash: {response.cast.hash}, Channel: {channel or 'none'})")
         return True
