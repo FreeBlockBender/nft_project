@@ -294,3 +294,126 @@ def format_golden_cross_farcaster_msg(obj) -> str:
     )
     return msg[:320]
 
+
+
+
+def get_fear_greed_import_summary(
+    total_elements: int,
+    inserted_count: int,
+    skipped_date_mismatch: int,
+    failed_count: int,
+    file_save_status: str
+) -> str:
+    """
+    Genera il messaggio di riepilogo per il processo di importazione del Fear and Greed Index.
+
+    Args:
+        total_elements: Numero totale di elementi processati (di solito 1 per il Fear and Greed Index).
+        inserted_count: Numero di record inseriti correttamente.
+        skipped_date_mismatch: Numero di record saltati (e.g., per chiave primaria duplicata).
+        failed_count: Numero di record con errori durante l'insert.
+        file_save_status: Stato del salvataggio del file JSON (successo, errore, skippato).
+
+    Returns:
+        La stringa formattata per il messaggio Telegram.
+    """
+    # Preparazione dettaglio salvataggio file
+    if file_save_status == "success":
+        saving_detail = "Risposta API salvata correttamente."
+    elif file_save_status and file_save_status.startswith("error:"):
+        saving_detail = f"❌ Errore salvataggio risposta API: {file_save_status.split(':', 1)[1]}"
+    elif file_save_status == "skipped":
+        saving_detail = "Salvataggio risposta API skippato (Mock Mode attivo)."
+    else:
+        saving_detail = "Salvataggio risposta API: stato sconosciuto o non applicabile."
+
+    msg = (
+        "📊 Report Import Fear and Greed Index 📈\n\n"
+        f"Totale elementi processati: {total_elements}\n"
+        f"✔️ Record inseriti: {inserted_count}\n"
+        f"🔸 Record saltati (duplicati): {skipped_date_mismatch}\n"
+        f"❌ Record con errori di insert: {failed_count}\n"
+        f"\n💾 Stato Salvataggio File JSON:\n{saving_detail}"
+    )
+    return msg
+
+
+def get_crypto_import_summary(
+    total_elements: int,
+    inserted_count: int,
+    skipped_date_mismatch: int,
+    failed_count: int,
+    file_save_status: str
+) -> str:
+    """
+    Genera il messaggio di riepilogo per il processo di importazione dei dati cripto da CoinGecko.
+
+    Args:
+        total_elements: Numero totale di elementi processati (criptovalute nel payload JSON).
+        inserted_count: Numero di record inseriti correttamente.
+        skipped_date_mismatch: Numero di record saltati (e.g., per chiave primaria duplicata).
+        failed_count: Numero di record con errori durante l'insert.
+        file_save_status: Stato del salvataggio del file JSON (successo, errore, skippato).
+
+    Returns:
+        La stringa formattata per il messaggio Telegram.
+    """
+    # Preparazione dettaglio salvataggio file
+    if file_save_status == "success":
+        saving_detail = "Risposta API salvata correttamente."
+    elif file_save_status and file_save_status.startswith("error:"):
+        saving_detail = f"❌ Errore salvataggio risposta API: {file_save_status.split(':', 1)[1]}"
+    elif file_save_status == "skipped":
+        saving_detail = "Salvataggio risposta API skippato (Mock Mode attivo)."
+    else:
+        saving_detail = "Salvataggio risposta API: stato sconosciuto o non applicabile."
+
+    msg = (
+        "💰 Report Import Dati Cripto 📈\n\n"
+        f"Totale criptovalute processate: {total_elements}\n"
+        f"✔️ Record inseriti: {inserted_count}\n"
+        f"🔸 Record saltati (duplicati): {skipped_date_mismatch}\n"
+        f"❌ Record con errori di insert: {failed_count}\n"
+        f"\n💾 Stato Salvataggio File JSON:\n{saving_detail}"
+    )
+    return msg
+
+
+def get_historical_crypto_import_summary(
+    total_elements: int,
+    inserted_count: int,
+    skipped_date_mismatch: int,
+    failed_count: int,
+    file_save_status: str
+) -> str:
+    """
+    Genera il messaggio di riepilogo per il processo di importazione dei dati storici cripto.
+
+    Args:
+        total_elements: Numero totale di elementi processati (record di prezzo giornalieri).
+        inserted_count: Numero di record inseriti correttamente.
+        skipped_date_mismatch: Numero di record saltati (e.g., per chiave primaria duplicata).
+        failed_count: Numero di record con errori durante l'insert.
+        file_save_status: Stato del salvataggio del file JSON (successo, errore, skippato).
+
+    Returns:
+        La stringa formattata per il messaggio Telegram.
+    """
+    if file_save_status == "success":
+        saving_detail = "Risposta API salvata correttamente."
+    elif file_save_status and file_save_status.startswith("error:"):
+        saving_detail = f"❌ Errore salvataggio risposta API: {file_save_status.split(':', 1)[1]}"
+    elif file_save_status == "skipped":
+        saving_detail = "Salvataggio risposta API skippato (Mock Mode attivo)."
+    else:
+        saving_detail = "Salvataggio risposta API: stato sconosciuto o non applicabile."
+
+    msg = (
+        "📅 Report Import Dati Storici Cripto 📈\n\n"
+        f"Totale record processati: {total_elements}\n"
+        f"✔️ Record inseriti: {inserted_count}\n"
+        f"🔸 Record saltati (duplicati): {skipped_date_mismatch}\n"
+        f"❌ Record con errori di insert: {failed_count}\n"
+        f"\n💾 Stato Salvataggio File JSON:\n{saving_detail}"
+    )
+    return msg
