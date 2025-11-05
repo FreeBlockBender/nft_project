@@ -125,7 +125,7 @@ def format_golden_cross_msg(obj) -> str:
     )
     return msg
 
-def get_golden_cross_summary_msg(mode, ma_short, ma_long, total_crosses, inserted_records):
+def get_golden_cross_summary_msg(mode, ma_short, ma_long, total_crosses, inserted_records, start_date):
     """
     Genera un messaggio di riepilogo elaborazione Golden Cross.
 
@@ -141,6 +141,7 @@ def get_golden_cross_summary_msg(mode, ma_short, ma_long, total_crosses, inserte
     """
     return (f"✨ Golden Cross Elaboration [{ma_short} , {ma_long}] 📈\n\n"
             f"📌 Type: {mode}\n "
+            f"📅 Start Date: {start_date if start_date else 'Full History'}\n"
             f"🔎 Found: {total_crosses}\n"
             f"💾 Saved in DB: {inserted_records}")
 
