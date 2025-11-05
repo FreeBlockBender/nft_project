@@ -10,24 +10,29 @@ def get_collections(conn):
     cur.execute("SELECT collection_identifier, slug, chain FROM nft_collections")
     return cur.fetchall()
 
-def get_floor_series(conn, collection_id, floor_field):
+def get_floor_series(conn, collection_id, slug, floor_field):
     """Recupera la serie storica del floor price scelto (nativo/usd)."""
     cur = conn.cursor()
     cur.execute(
         f"SELECT latest_floor_date, {floor_field} FROM historical_nft_data "
-        f"WHERE collection_identifier = ? AND {floor_field} IS NOT NULL "
+        f"WHERE collection_identifier IN (?,?) AND {floor_field} IS NOT NULL "
         "ORDER BY latest_floor_date ASC",
-        (collection_id,)
+        (collection_id,slug.replace('-',''))
     )
     return cur.fetchall()
 
-def get_floor_usd_and_native(conn, collection_id, date):
-    """Recupera floor_native e floor_usd per una specifica collezione/data."""
+def get_floor_usd_and_native(conn, collection_id, slug, date, chain):
+    """Recupera floor_native e floor_usd per collezione, data e CHAIN specifica."""
     cur = conn.cursor()
     cur.execute(
-        "SELECT floor_native, floor_usd FROM historical_nft_data "
-        "WHERE collection_identifier = ? AND latest_floor_date = ?",
-        (collection_id, date)
+        """
+        SELECT floor_native, floor_usd 
+        FROM historical_nft_data 
+        WHERE collection_identifier IN (?, ?) 
+          AND latest_floor_date = ? 
+          AND chain = ?
+        """,
+        (collection_id, slug.replace('-', ''), date, chain)
     )
     return cur.fetchone() or (None, None)
 
@@ -60,57 +65,100 @@ def insert_golden_cross(conn, collection_id, chain, date, is_native,
             f"Errore: {e}"
         )
         return False  # Duplicato, non inserito
+    
+def detect_all_historical_golden_crosses(
+    conn,
+    short_period,
+    long_period,
+    short_thresh,
+    long_thresh,
+    start_date: str | None = None   # NUOVO: data di inizio (YYYY-MM-DD), inclusiva
+):
+    """
+    Rileva tutte le Golden Cross storiche, ma **solo a partire da start_date**.
+    Se start_date è None, analizza tutto (come prima).
+    """
+    from datetime import datetime
 
-def detect_all_historical_golden_crosses(conn, short_period, long_period,
-                                         short_thresh, long_thresh):
-    """
-    Elabora la serie storica di tutte le collezioni per tutte le combinazioni richieste,
-    inserisce tutte le Golden Cross che rileva e manda un recap su Telegram.
-    """
     collections = get_collections(conn)
     total = len(collections)
-    golden_cross_detected = 0  # Numero totale di GC rilevate
-    golden_cross_inserted = 0  # Effettivamente inserite in DB
+    golden_cross_detected = 0
+    golden_cross_inserted = 0
+
+    # Converti start_date in oggetto date (se presente)
+    start_dt = None
+    if start_date:
+        try:
+            start_dt = datetime.strptime(start_date.strip(), "%Y-%m-%d").date()
+        except ValueError:
+            raise ValueError(f"Formato data non valido: '{start_date}'. Usa YYYY-MM-DD.")
+
     for idx, (collection_id, slug, chain) in enumerate(collections, 1):
         print(f"\nCollezione {idx} di {total} – Slug: {slug}")
         for floor_field, is_native in [("floor_native", True), ("floor_usd", False)]:
-            serie = get_floor_series(conn, collection_id, floor_field)
+            serie = get_floor_series(conn, collection_id, slug, floor_field)
             if len(serie) < long_period + 1:
                 print(f"[{idx}/{total}] {slug}: dati insufficienti per la media mobile ({floor_field})")
                 continue
+
             date_list = [d for d, v in serie]
-            for i in range(long_period, len(date_list)):
+
+            # Trova l'indice minimo da cui partire (rispettando sia i dati per la MA che la data di inizio)
+            start_idx = long_period  # necessario per calcolare MA di lungo periodo
+            if start_dt:
+                # Trova il primo indice con data >= start_date
+                for i, d in enumerate(date_list):
+                    try:
+                        current_dt = datetime.strptime(d, "%Y-%m-%d").date()
+                        if current_dt >= start_dt:
+                            start_idx = max(start_idx, i)
+                            break
+                    except ValueError:
+                        continue
+                else:
+                    # Nessuna data >= start_date
+                    continue
+
+            # Ciclo solo da start_idx in poi
+            for i in range(start_idx, len(date_list)):
                 date_today = date_list[i]
                 date_yesterday = date_list[i - 1]
+
                 ma_short_today = calculate_sma(serie[:i + 1], short_period, date_today, short_thresh)
                 ma_long_today = calculate_sma(serie[:i + 1], long_period, date_today, long_thresh)
                 ma_short_yesterday = calculate_sma(serie[:i], short_period, date_yesterday, short_thresh)
                 ma_long_yesterday = calculate_sma(serie[:i], long_period, date_yesterday, long_thresh)
+
                 if any(x is None for x in [ma_short_today, ma_long_today, ma_short_yesterday, ma_long_yesterday]):
-                    print(f"[{idx}/{total}] {slug}: dati mancanti per {floor_field} (date: {date_today})")
                     continue
+
                 if is_golden_cross(ma_short_today, ma_long_today, ma_short_yesterday, ma_long_yesterday):
-                    floor_native, floor_usd = get_floor_usd_and_native(conn, collection_id, date_today)
+                    floor_native, floor_usd = get_floor_usd_and_native(conn, collection_id, slug, date_today, chain)
                     golden_cross_detected += 1
-                    inserted = insert_golden_cross(conn, collection_id, chain, date_today, is_native,
-                                        floor_native, floor_usd,
-                                        ma_short_today, ma_long_today,
-                                        ma_short_yesterday, ma_long_yesterday,
-                                        short_period, long_period)
+                    inserted = insert_golden_cross(
+                        conn, collection_id, chain, date_today, is_native,
+                        floor_native, floor_usd,
+                        ma_short_today, ma_long_today,
+                        ma_short_yesterday, ma_long_yesterday,
+                        short_period, long_period
+                    )
                     if inserted:
                         golden_cross_inserted += 1
-                    print(f"[{idx}/{total}] {slug} - Golden Cross rilevata/registrata in data {date_today} ({'native' if is_native else 'usd'})")
-    print(f"\nTotale Golden Cross storiche individuate: {golden_cross_detected}")
+                    print(f"[{idx}/{total}] {slug} - Golden Cross in {date_today} ({'native' if is_native else 'usd'})")
+
+    print(f"\nTotale Golden Cross individuate (da {start_date or 'inizio dati'}): {golden_cross_detected}")
     print(f"Record inseriti nel DB: {golden_cross_inserted}")
     conn.commit()
-    # --- Messaggio Telegram riepilogo ---
+
+    # Telegram recap
     chat_id = get_monitoring_chat_id()
     msg = get_golden_cross_summary_msg(
         mode='historical',
         ma_short=short_period,
         ma_long=long_period,
         total_crosses=golden_cross_detected,
-        inserted_records=golden_cross_inserted
+        inserted_records=golden_cross_inserted,
+        start_date=start_date
     )
     send_telegram_message(msg, chat_id)
     return golden_cross_detected, golden_cross_inserted
@@ -128,7 +176,7 @@ def detect_current_golden_crosses(conn, short_period, long_period,
     for idx, (collection_id, slug, chain) in enumerate(collections, 1):
         print(f"\nCollezione {idx} di {total} – Slug: {slug}")
         for floor_field, is_native in [("floor_native", True), ("floor_usd", False)]:
-            serie = get_floor_series(conn, collection_id, floor_field)
+            serie = get_floor_series(conn, collection_id, slug, floor_field)
             if len(serie) < long_period + 1:
                 print(f"[{idx}/{total}] {slug}: dati insufficienti per la media mobile ({floor_field})")
                 continue
@@ -144,7 +192,7 @@ def detect_current_golden_crosses(conn, short_period, long_period,
                 print(f"[{idx}/{total}] {slug}: dati mancanti per {floor_field} ({date_today})")
                 continue
             if is_golden_cross(ma_short_today, ma_long_today, ma_short_yesterday, ma_long_yesterday):
-                floor_native, floor_usd = get_floor_usd_and_native(conn, collection_id, date_today)
+                floor_native, floor_usd = get_floor_usd_and_native(conn, collection_id, slug, date_today, chain)
                 golden_cross_detected += 1
                 inserted = insert_golden_cross(conn, collection_id, chain, date_today, is_native,
                                     floor_native, floor_usd,
