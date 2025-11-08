@@ -58,9 +58,9 @@ async def enter_slug_usd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     cur.execute(
         "SELECT latest_floor_date, floor_usd FROM historical_nft_data "
-        "WHERE collection_identifier IN (?,?) AND latest_floor_date >= date('now', ? || ' days') "
+        "WHERE slug = ? AND latest_floor_date >= date('now', ? || ' days') "
         "ORDER BY latest_floor_date ASC",
-        (collection_identifier, slug.replace('-',''), -days)
+        ( slug, -days)
     )
     data = cur.fetchall()
     conn.close()
