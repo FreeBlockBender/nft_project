@@ -102,7 +102,7 @@ def get_crosses_by_date(conn, target_date):
     """, (target_date,))
     return cur.fetchall()
 
-def get_nftdata(conn, collection_identifier, target_date):
+def get_nftdata(conn, collection_identifier, slug, target_date):
     """Retrieve data from historical_nft_data for a specific date."""
     cur = conn.cursor()
     cur.execute("""
@@ -110,9 +110,9 @@ def get_nftdata(conn, collection_identifier, target_date):
                contract_address, chain, chain_currency_symbol,
                unique_owners, total_supply, listed_count, best_price_url
         FROM historical_nft_data
-        WHERE collection_identifier = ? AND latest_floor_date = ?
+        WHERE collection_identifier IN (?,?,?) AND latest_floor_date = ?
         LIMIT 1
-    """, (collection_identifier, target_date))
+    """, (collection_identifier, slug, slug.replace('-',''), target_date))
     return cur.fetchone()
 
 async def notify_crosses(conn, crosses, label="periodo selezionato"):
@@ -127,7 +127,7 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
     
     for cross in crosses:
         # Fetch NFT data from historical_nft_data
-        nft_data = get_nftdata(conn, cross['collection_identifier'], cross['date'])
+        nft_data = get_nftdata(conn, cross['collection_identifier'], cross['slug'] ,  cross['date'])
         if not nft_data:
             logging.info(f"No NFT data found for {cross['collection_identifier']} on {cross['date']}")
             continue
@@ -137,9 +137,9 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
         cur.execute("""
             SELECT x_page, farcaster_page, marketplace_url
             FROM nft_collections
-            WHERE collection_identifier = ?
+            WHERE slug = ?
             LIMIT 1
-        """, (cross['collection_identifier'],))
+        """, (cross['slug'],))
         collection_data = cur.fetchone()
         x_page = collection_data['x_page'] if collection_data and collection_data['x_page'] is not None else None
         farcaster_page = collection_data['farcaster_page'] if collection_data and collection_data['farcaster_page'] is not None else None
@@ -246,7 +246,7 @@ async def notify_monthly_crosses(conn, days=365, ma_short_period=None, ma_long_p
 
         cross_date = cross["date"]
         is_native = cross["is_native"]
-        nft_row = get_nftdata(conn, collection_identifier, cross_date)
+        nft_row = get_nftdata(conn, collection_identifier, cross["slug"], cross_date)
         if not nft_row:
             continue
         cur = conn.cursor()
