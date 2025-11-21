@@ -28,8 +28,6 @@ API_KEY = config.get("X_API_KEY")
 API_SECRET_KEY = config.get("X_API_SECRET_KEY")
 ACCESS_TOKEN = config.get("X_ACCESS_TOKEN")
 ACCESS_TOKEN_SECRET = config.get("X_ACCESS_TOKEN_SECRET")
-MNEMONIC = config.get("MNEMONIC")
-
 
 # ThreadPoolExecutor for X API
 executor = ThreadPoolExecutor(max_workers=1)
@@ -102,7 +100,7 @@ def get_nftdata(conn, slug, target_date):
     return cur.fetchone()
 
 async def notify_crosses(conn, crosses, label="periodo selezionato"):
-    """Send Golden Cross notifications to Telegram, X, and Farcaster (with smart channel logic)."""
+    """Send Golden Cross notifications to Telegram, X"""
     if not crosses:
         logging.info(f"Nessuna Golden Cross trovata per il {label}.")
         return
@@ -121,14 +119,13 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
         # Fetch collection metadata
         cur = conn.cursor()
         cur.execute("""
-            SELECT x_page, farcaster_page, marketplace_url
+            SELECT x_page, marketplace_url
             FROM nft_collections
             WHERE slug = ?
             LIMIT 1
         """, (cross['slug'],))
         collection_data = cur.fetchone()
         x_page = collection_data['x_page'] if collection_data and collection_data['x_page'] is not None else None
-        farcaster_page = collection_data['farcaster_page'] if collection_data and collection_data['farcaster_page'] is not None else None
         marketplace_url = collection_data['marketplace_url'] if collection_data and collection_data['marketplace_url'] is not None else None
 
         # Prepare message data
@@ -140,7 +137,6 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
             msg_data[f"historical_nft_data.{k}"] = nft_data[k]
             msg_data[k] = nft_data[k]
         msg_data['x_page'] = x_page
-        msg_data['farcaster_page'] = farcaster_page
         msg_data['marketplace_url'] = marketplace_url   
 
         # Telegram message
@@ -167,7 +163,7 @@ async def notify_crosses(conn, crosses, label="periodo selezionato"):
         if telegram_success or x_success:
             count_sent += 1
     
-    logging.info(f"{count_sent} Golden Cross messages sent to Telegram/X/Farcaster ({label}).")
+    logging.info(f"{count_sent} Golden Cross messages sent to Telegram/X ({label}).")
 
 
 async def notify_today_crosses(conn):
