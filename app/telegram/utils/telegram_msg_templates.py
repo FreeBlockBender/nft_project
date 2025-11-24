@@ -1,7 +1,7 @@
 
 # app/utils/telegram_msg_templates.py
 from datetime import datetime, date
-import random
+
 
 def get_csv_import_summary(total_files_found: int, files_processed_successfully: int, files_skipped: int, total_row_errors: int) -> str:
     """
@@ -198,65 +198,6 @@ def format_golden_cross_monthly_recap_msg(
         rows.append(row)
 
     return f"{header}\n\n" + "\n\n".join(rows) if rows else f"{header}\n\nNessuna Golden Cross rilevata nell'ultimo mese."
-
-
-def format_golden_cross_x_msg(obj) -> str:
-    """
-    Create a concise Golden Cross message for X.
-    Rounds floor_native to 4 decimals, floor_usd to 2 decimals, MA short/long to 4 decimals.
-    Uses dynamic MA periods and appropriate currency suffix.
-    """
-    floor_native = f"{obj.get('floor_native', 0):.4f}" if obj.get('floor_native') is not None else "N/A"
-    floor_usd = f"{obj.get('floor_usd', 0):.2f}" if obj.get('floor_usd') is not None else "N/A"
-    ma_short = f"{obj.get('ma_short', 0):.4f}" if obj.get('ma_short') is not None else "N/A"
-    ma_long = f"{obj.get('ma_long', 0):.4f}" if obj.get('ma_long') is not None else "N/A"
-
-    # Dynamic MA periods
-    period_short = obj.get('ma_short_period', "short")
-    period_long = obj.get('ma_long_period', "long")
-
-    # Currency suffix for MA
-    currency = obj.get('chain_currency_symbol', '') if obj.get('is_native', 1) in (1, "1", True) else "USD"
-
-    # Currency suffix for floor price
-    currency_floor = obj.get('chain_currency_symbol', '') 
-
-    # Collection slug for mention and hashtag
-    slug = obj.get('slug', 'Unknown')
-    collection_name = obj.get('name', slug)
-    x_handle = obj.get('x_page', None)
-    slug_mention = f"{x_handle}" if x_handle is not None else slug
-
-    # Safe hashtag generation, removing spaces and hyphens
-    hashtag_name = collection_name.replace(' ', '').replace('-', '') if isinstance(collection_name, str) else 'Unknown'
-
-    cta_phrases = [
-        "Snag one here",
-        "Check it out",
-        "Grab yours now",
-        "Dive in here",
-        "Explore now"
-    ]
-
-    cta_phrase = random.choice(cta_phrases)
-
-    # Construct the message
-    msg = (
-        f"🚨 GOLDEN CROSS ALERT! 🚀\n\n"
-        f"{collection_name} by {slug_mention} NFTs on #{obj.get('chain', 'N/A')} signal a BULLISH trend!\n\n"
-        f"📈 MA{period_short} ({ma_short} {currency}) crossed above MA{period_long} ({ma_long} {currency}).\n"
-        f"Floor: {floor_native} {currency_floor} (~${floor_usd}). "
-        f"{obj.get('total_supply', 'N/A')} supply, {obj.get('unique_owners', 'N/A')} owners, {obj.get('listed_count', 'N/A')} listed.\n\n"
-        f"#NFTCommunity #NFTs #{obj.get('chain', 'N/A')} #{hashtag_name} #GoldenCross #CryptoArt \n\n"
-        f"Join the free telegram channel here! 👉 http://t.me/NFTAlertXComm"
-        f"{cta_phrase}: {obj.get('best_price_url')}" if obj.get('best_price_url') is not None else ""
-
-    )
-
-    return msg
-
-
-
 
 
 def get_fear_greed_import_summary(
