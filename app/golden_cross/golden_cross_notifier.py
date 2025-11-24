@@ -67,7 +67,7 @@ def get_crosses_between_dates(conn, date_from, date_to, ma_short_period=None, ma
     cur = conn.cursor()
     query = """
         SELECT * FROM historical_golden_crosses
-        WHERE date BETWEEN ? AND ?
+        WHERE is_native = 1 AND date BETWEEN ? AND ?
     """
     params = [date_from, date_to]
     if ma_short_period is not None and ma_long_period is not None:
@@ -82,7 +82,7 @@ def get_crosses_by_date(conn, target_date):
     cur = conn.cursor()
     cur.execute("""
         SELECT * FROM historical_golden_crosses
-        WHERE date = ? 
+        WHERE is_native = 1 AND date = ? 
     """, (target_date,))
     return cur.fetchall()
 
