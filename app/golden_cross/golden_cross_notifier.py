@@ -1,6 +1,5 @@
 import sqlite3
 from datetime import datetime, timedelta
-import tweepy
 from telegram.error import TelegramError
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -10,9 +9,9 @@ from app.config.config import load_config
 from app.telegram.utils.telegram_notifier import send_telegram_message, get_gc_draft_chat_id
 from app.telegram.utils.telegram_msg_templates import (
     format_golden_cross_msg,
-    format_golden_cross_monthly_recap_msg,
-    format_golden_cross_x_msg
+    format_golden_cross_monthly_recap_msg
 )
+from app.utils.x_functions import *
 
 # Configure logging
 logging.basicConfig(
@@ -24,43 +23,24 @@ logging.basicConfig(
 # Load configuration
 config = load_config()
 db_path = config.get("DB_PATH", "nft_data.sqlite3")
-API_KEY = config.get("X_API_KEY")
-API_SECRET_KEY = config.get("X_API_SECRET_KEY")
-ACCESS_TOKEN = config.get("X_ACCESS_TOKEN")
-ACCESS_TOKEN_SECRET = config.get("X_ACCESS_TOKEN_SECRET")
+
 
 # ThreadPoolExecutor for X API
 executor = ThreadPoolExecutor(max_workers=1)
 
-def post_to_x(message):
-    """Post a message to X."""
-    try:
-        client = tweepy.Client(
-            consumer_key=API_KEY,
-            consumer_secret=API_SECRET_KEY,
-            access_token=ACCESS_TOKEN,
-            access_token_secret=ACCESS_TOKEN_SECRET
-        )
-        client.create_tweet(text=message)
-        logging.info(f"Successfully posted to X: {message[:50]}...")
-        return True
-    except tweepy.TweepyException as e:
-        logging.error(f"Error posting to X: {e}")
-        raise
-
 
 #def get_sales_volume_usd(conn, collection_identifier):
-    """Calculate total sales volume in USD for a collection over the last 30 days."""
-    cur = conn.cursor()
-    query = """
-        SELECT SUM((floor_usd / floor_native) * sale_volume_native_24h) AS sale_volume_usd
-        FROM historical_nft_data
-        WHERE collection_identifier = ?
-        AND latest_floor_date >= date(CURRENT_DATE, '-30 days')
-    """
-    cur.execute(query, (collection_identifier,))
-    result = cur.fetchone()
-    return result['sale_volume_usd'] if result and result['sale_volume_usd'] is not None else 0
+#    """Calculate total sales volume in USD for a collection over the last 30 days."""
+#    cur = conn.cursor()
+#    query = """
+#        SELECT SUM((floor_usd / floor_native) * sale_volume_native_24h) AS sale_volume_usd
+#        FROM historical_nft_data
+#        WHERE collection_identifier = ?
+#        AND latest_floor_date >= date(CURRENT_DATE, '-30 days')
+#    """
+#    cur.execute(query, (collection_identifier,))
+#    result = cur.fetchone()
+#    return result['sale_volume_usd'] if result and result['sale_volume_usd'] is not None else 0
 
 def get_crosses_between_dates(conn, date_from, date_to, ma_short_period=None, ma_long_period=None):
     """Retrieve all Golden Crosses between two dates (inclusive), with optional MA filters."""
