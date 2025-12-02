@@ -58,11 +58,14 @@ def get_crosses_between_dates(conn, date_from, date_to, ma_short_period=None, ma
     return cur.fetchall()
 
 def get_crosses_by_date(conn, target_date):
-    """Retrieve all Golden Crosses for the specified date."""
+    """Get Golden Crosses for the date that still need Telegram OR X, ordered oldest first."""
     cur = conn.cursor()
     cur.execute("""
         SELECT * FROM historical_golden_crosses
-        WHERE is_native = 1 AND date = ? 
+        WHERE is_native = 1 
+          AND date = ? 
+          AND (telegram_sent = 0 OR x_sent = 0)
+        ORDER BY date ASC, slug ASC
     """, (target_date,))
     return cur.fetchall()
 
@@ -80,71 +83,87 @@ def get_nftdata(conn, slug, target_date):
     return cur.fetchone()
 
 async def notify_crosses(conn, crosses, label="periodo selezionato"):
-    """Send Golden Cross notifications to Telegram, X"""
+    """Send Golden Cross notifications — max 5 X posts per run."""
     if not crosses:
-        logging.info(f"Nessuna Golden Cross trovata per il {label}.")
+        logging.info(f"Nessuna Golden Cross da inviare per il {label}.")
         return
-    logging.info(f"Golden Cross trovate per {label}: {len(crosses)}")
+
+    logging.info(f"Golden Cross da elaborare per {label}: {len(crosses)}")
     chat_id = get_gc_draft_chat_id()
     count_sent = 0
+    x_posts_this_run = 0
+    MAX_X_PER_RUN = 5
+
     loop = asyncio.get_event_loop()
-    
+
     for cross in crosses:
-        # Fetch NFT data from historical_nft_data
-        nft_data = get_nftdata(conn, cross['slug'], cross['date'])
-        if not nft_data:
-            logging.info(f"No NFT data found for {cross['slug']} on {cross['date']}")
+        # Skip if both platforms are already done
+        if cross['telegram_sent'] == 1 and cross['x_sent'] == 1:
             continue
 
-        # Fetch collection metadata
+        # Fetch NFT data + collection metadata (same as before)
+        nft_data = get_nftdata(conn, cross['slug'], cross['date'])
+        if not nft_data:
+            logging.info(f"No NFT data for {cross['slug']} on {cross['date']}")
+            continue
+
         cur = conn.cursor()
-        cur.execute("""
-            SELECT x_page, marketplace_url
-            FROM nft_collections
-            WHERE slug = ?
-            LIMIT 1
-        """, (cross['slug'],))
+        cur.execute("SELECT x_page, marketplace_url FROM nft_collections WHERE slug = ? LIMIT 1", (cross['slug'],))
         collection_data = cur.fetchone()
-        x_page = collection_data['x_page'] if collection_data and collection_data['x_page'] is not None else None
-        marketplace_url = collection_data['marketplace_url'] if collection_data and collection_data['marketplace_url'] is not None else None
+        x_page = collection_data['x_page'] if collection_data and collection_data['x_page'] else None
+        marketplace_url = collection_data['marketplace_url'] if collection_data and collection_data['marketplace_url'] else None
 
-        # Prepare message data
-        msg_data = {}
-        for k in cross.keys():
-            msg_data[f"historical_golden_crosses.{k}"] = cross[k]
-            msg_data[k] = cross[k]
-        for k in nft_data.keys():
-            msg_data[f"historical_nft_data.{k}"] = nft_data[k]
-            msg_data[k] = nft_data[k]
-        msg_data['x_page'] = x_page
-        msg_data['marketplace_url'] = marketplace_url   
+        msg_data = {**cross, **nft_data, 'x_page': x_page, 'marketplace_url': marketplace_url}
 
-        # Telegram message
-        telegram_success = False
-        telegram_msg = format_golden_cross_msg(msg_data)
-        try:
-            result = await send_telegram_message(telegram_msg, chat_id)
-            logging.info(f"Sent Telegram message for {cross['slug']}")
-            telegram_success = True
-        except TelegramError as e:
-            logging.error(f"Error sending to Telegram for {cross['slug']}: {e}")
-        except Exception as e:
-            logging.error(f"Unexpected error in Telegram send for {cross['slug']}: {e}")
-        
-        # X message
-        x_success = False
-        try:
-            x_msg = format_golden_cross_x_msg(msg_data)
-            await loop.run_in_executor(executor, post_to_x, x_msg)
-            x_success = True
-        except Exception as e:
-            logging.error(f"Error sending to X for {cross['slug']}: {e}")
-        
-        if telegram_success or x_success:
+        # === TELEGRAM (no limit) ===
+        if cross['telegram_sent'] == 0:
+            telegram_msg = format_golden_cross_msg(msg_data)
+            try:
+                await send_telegram_message(telegram_msg, chat_id)
+                logging.info(f"Telegram → {cross['slug']} ({cross['date']})")
+
+                cur.execute("""
+                    UPDATE historical_golden_crosses 
+                    SET telegram_sent = 1 
+                    WHERE slug = ? AND date = ? AND ma_short_period = ? AND ma_long_period = ?
+                """, (cross['slug'], cross['date'], cross['ma_short_period'], cross['ma_long_period']))
+                conn.commit()
+            except Exception as e:
+                logging.error(f"Telegram failed for {cross['slug']}: {e}")
+
+        # === X (Twitter) — max 5 per run ===
+        if cross['x_sent'] == 0 and x_posts_this_run < MAX_X_PER_RUN:
+            try:
+                x_msg = format_golden_cross_x_msg(msg_data)
+                await loop.run_in_executor(executor, post_to_x, x_msg)
+                logging.info(f"X posted ({x_posts_this_run + 1}/{MAX_X_PER_RUN}) → {cross['slug']} ({cross['date']})")
+
+                cur.execute("""
+                    UPDATE historical_golden_crosses 
+                    SET x_sent = 1 
+                    WHERE slug = ? AND date = ? AND ma_short_period = ? AND ma_long_period = ?
+                """, (cross['slug'], cross['date'], cross['ma_short_period'], cross['ma_long_period']))
+                conn.commit()
+
+                x_posts_this_run += 1
+            except Exception as e:
+                logging.error(f"X post failed for {cross['slug']}: {e}")
+        elif cross['x_sent'] == 0 and x_posts_this_run >= MAX_X_PER_RUN:
+            logging.info(f"X limit reached ({MAX_X_PER_RUN}/run). Skipping remaining X posts. "
+                         f"Will retry {cross['slug']} next run.")
+
+        # Count as "processed" if at least one platform succeeded or was already done
+        if (cross['telegram_sent'] == 1 or 'telegram_sent' in locals() and cross['telegram_sent'] == 0) and \
+           (cross['x_sent'] == 1 or x_posts_this_run >= MAX_X_PER_RUN or cross['x_sent'] == 0):
             count_sent += 1
-    
-    logging.info(f"{count_sent} Golden Cross messages sent to Telegram/X ({label}).")
 
+        # Early exit if we hit the X limit and no more Telegram-only items
+        if x_posts_this_run >= MAX_X_PER_RUN and all(c['telegram_sent'] == 1 for c in crosses[crosses.index(cross)+1:]):
+            logging.info("X limit reached and no more Telegram-only items → stopping early.")
+            break
+
+    logging.info(f"Processing completed for {label}: {count_sent} crosses handled, "
+                 f"{x_posts_this_run} new X posts sent.")
 
 async def notify_today_crosses(conn):
     """Notify today's Golden Crosses on Telegram and X."""
