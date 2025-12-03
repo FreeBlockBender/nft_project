@@ -143,7 +143,7 @@ def import_collections():
     )
 
     if telegram_chat_id:
-        asyncio.run(send_telegram_message(msg, telegram_chat_id))
+        asyncio.run(send_telegram_message(summary_msg, telegram_chat_id))
     else:
         logging.warning("ID chat Telegram non configurato. Impossibile inviare messaggio riepilogativo finale.")
 
