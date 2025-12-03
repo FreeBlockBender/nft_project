@@ -1,4 +1,3 @@
-import requests
 import httpx
 from app.config.config import load_config
 

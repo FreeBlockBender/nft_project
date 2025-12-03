@@ -1,3 +1,4 @@
+import asyncio
 import os
 import json
 import logging
@@ -29,17 +30,17 @@ def import_collections():
     except FileNotFoundError:
         msg = f"Errore: File non trovato - {json_path}. Assicurati che il file esista."
         logging.error(msg)
-        send_telegram_message(msg, telegram_chat_id)
+        asyncio.run(send_telegram_message(msg, telegram_chat_id))
         return
     except json.JSONDecodeError as e:
         msg = f"Errore parsing JSON nel file {json_path}: {e}"
         logging.error(msg)
-        send_telegram_message(msg, telegram_chat_id)
+        asyncio.run(send_telegram_message(msg, telegram_chat_id))
         return
     except Exception as e:
         msg = f"Errore generico caricamento file {json_path}: {e}"
         logging.error(msg)
-        send_telegram_message(msg, telegram_chat_id)
+        asyncio.run(send_telegram_message(msg, telegram_chat_id))
         return
 
     if isinstance(data, dict) and "data" in data:
@@ -48,7 +49,7 @@ def import_collections():
     if not isinstance(data, list):
         msg = "Il payload del file non è un array di oggetti come previsto."
         logging.error(msg)
-        send_telegram_message(msg, telegram_chat_id)
+        asyncio.run(send_telegram_message(msg, telegram_chat_id))
         return
 
     conn = get_db_connection()
@@ -142,7 +143,7 @@ def import_collections():
     )
 
     if telegram_chat_id:
-        send_telegram_message(summary_msg, telegram_chat_id)
+        asyncio.run(send_telegram_message(msg, telegram_chat_id))
     else:
         logging.warning("ID chat Telegram non configurato. Impossibile inviare messaggio riepilogativo finale.")
 
