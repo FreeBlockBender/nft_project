@@ -1,3 +1,4 @@
+import asyncio
 import sqlite3
 from datetime import datetime
 from app.golden_cross.moving_average import calculate_sma, is_golden_cross
@@ -212,7 +213,10 @@ def detect_current_golden_crosses(conn, short_period, long_period,
         ma_short=short_period,
         ma_long=long_period,
         total_crosses=golden_cross_detected,
-        inserted_records=golden_cross_inserted
+        inserted_records=golden_cross_inserted,
+        start_date=date_today
     )
-    send_telegram_message(msg, chat_id)
+    
+    asyncio.run(send_telegram_message(msg, chat_id))
+
     return golden_cross_detected, golden_cross_inserted
