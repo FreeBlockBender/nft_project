@@ -1,3 +1,4 @@
+import asyncio
 import os
 import json
 import requests
@@ -105,19 +106,19 @@ def import_crypto_data_via_api():
                 msg = f"Errore parsing JSON nel file mock {fixed_mock_file_path}: {e}"
                 print(msg)
                 logging.error(msg)
-                send_telegram_message(msg, telegram_chat_id)
+                asyncio.run(send_telegram_message(msg, telegram_chat_id))
                 return
             except Exception as e:
                 msg = f"Errore generico caricamento file mock {fixed_mock_file_path}: {e}"
                 print(msg)
                 logging.error(msg)
-                send_telegram_message(msg, telegram_chat_id)
+                asyncio.run(send_telegram_message(msg, telegram_chat_id))
                 return
         else:
             msg = f"Mock file non trovato: {fixed_mock_file_path}. Disabling mock mode and exiting."
             print(msg)
             logging.warning(msg)
-            send_telegram_message(msg, telegram_chat_id)
+            asyncio.run(send_telegram_message(msg, telegram_chat_id))
             return
     else:
         print("Making real API calls")
@@ -135,7 +136,7 @@ def import_crypto_data_via_api():
                 msg = f"Unexpected CoinGecko response format: {json.dumps(cg_data, indent=2)}"
                 print(msg)
                 logging.error(msg)
-                send_telegram_message(msg, telegram_chat_id)
+                asyncio.run(send_telegram_message(msg, telegram_chat_id))
                 return
             expected_coins = {"bitcoin", "ethereum", "solana", "binancecoin", "apecoin", "arbitrum", "optimism", "matic-network", "blast"}
             received_coins = {coin["id"] for coin in cg_data}
@@ -144,7 +145,7 @@ def import_crypto_data_via_api():
                 msg = f"Missing coins in CoinGecko response: {missing_coins}"
                 print(msg)
                 logging.warning(msg)
-                send_telegram_message(msg, telegram_chat_id)
+                asyncio.run(send_telegram_message(msg, telegram_chat_id))
 
             for coin in cg_data:
                 roi = coin.get("roi", {})
@@ -200,13 +201,13 @@ def import_crypto_data_via_api():
             msg = f"Errore chiamata API: {e}"
             print(msg)
             logging.error(msg)
-            send_telegram_message(msg, telegram_chat_id)
+            asyncio.run(send_telegram_message(msg, telegram_chat_id))
             return
         except Exception as e:
             msg = f"Eccezione imprevista durante chiamata API: {e}"
             print(msg)
             logging.error(msg)
-            send_telegram_message(msg, telegram_chat_id)
+            asyncio.run(send_telegram_message(msg, telegram_chat_id))
             return
 
     # --- 2. Validazione e preparazione dati ---
@@ -219,7 +220,7 @@ def import_crypto_data_via_api():
         msg = f"Errore connessione al database: {e}"
         print(msg)
         logging.error(msg)
-        send_telegram_message(msg, telegram_chat_id)
+        asyncio.run(send_telegram_message(msg, telegram_chat_id))
         return
 
     # Query di inserimento
@@ -313,7 +314,7 @@ def import_crypto_data_via_api():
         msg = f"Error generating summary message: {e}"
         print(msg)
         logging.error(msg)
-        send_telegram_message(msg, telegram_chat_id)
+        asyncio.run(send_telegram_message(msg, telegram_chat_id))
         summary_msg = f"Processed: {total_elements}, Inserted: {inserted_count}, Skipped: {skipped_date_mismatch}, Errors: {failed_count}, Status: {file_save_status}"
 
     print("Crypto data import completed")

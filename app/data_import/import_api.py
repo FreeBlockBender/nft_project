@@ -1,6 +1,6 @@
-
 # app/data_import/import_api.py
 
+import asyncio
 import os
 import json
 import requests
@@ -55,17 +55,17 @@ def import_nft_collections_via_api():
         except FileNotFoundError:
              msg = f"Errore: File mock locale non trovato al percorso specificato: {fixed_mock_file_path}"
              logging.error(msg)
-             send_telegram_message(msg, telegram_chat_id)
+             asyncio.run(send_telegram_message(msg, telegram_chat_id))
              return # Esce se il file mock richiesto non esiste
         except json.JSONDecodeError as e:
              msg = f"Errore parsing JSON nel file mock {fixed_mock_file_path}: {e}"
              logging.error(msg)
-             send_telegram_message(msg, telegram_chat_id)
+             asyncio.run(send_telegram_message(msg, telegram_chat_id))
              return # Esce se il file mock non è un JSON valido
         except Exception as e:
             msg = f"Errore generico caricamento file mock {fixed_mock_file_path}: {e}"
             logging.error(msg)
-            send_telegram_message(msg, telegram_chat_id)
+            asyncio.run(send_telegram_message(msg, telegram_chat_id))
             return # Esce per altri errori di caricamento file
 
     else:
@@ -78,7 +78,7 @@ def import_nft_collections_via_api():
                 # Gestisce errori HTTP
                 msg = f"Errore API! Status: {response.status_code}, Body: {response.text}"
                 logging.error(msg)
-                send_telegram_message(msg, telegram_chat_id)
+                asyncio.run(send_telegram_message(msg, telegram_chat_id))
                 return # Esce in caso di errore API
             # Se tutto ok:
             try:
@@ -88,7 +88,7 @@ def import_nft_collections_via_api():
                 # Gestisce errori di parsing JSON della risposta API
                 msg = f"Errore parsing JSON di risposta API: {e}. Risposta testuale: {response.text[:500]}..." # Logga anche parte della risposta per contesto
                 logging.error(msg)
-                send_telegram_message(msg, telegram_chat_id)
+                asyncio.run(send_telegram_message(msg, telegram_chat_id))
                 return # Esce se il parsing JSON fallisce
 
             # --- Salva la risposta API su file dinamico ---
@@ -114,19 +114,19 @@ def import_nft_collections_via_api():
             # Gestisce timeout della richiesta
             msg = "Errore Eccezione chiamata API: Timeout della richiesta dopo 60 secondi."
             logging.error(msg)
-            send_telegram_message(msg, telegram_chat_id)
+            asyncio.run(send_telegram_message(msg, telegram_chat_id))
             return # Esce per timeout
         except requests.exceptions.RequestException as e:
             # Gestisce altri errori di richiesta
             msg = f"Errore Eccezione chiamata API: {e}"
             logging.error(msg)
-            send_telegram_message(msg, telegram_chat_id)
+            asyncio.run(send_telegram_message(msg, telegram_chat_id))
             return # Esce per altri errori di richiesta
         except Exception as e:
             # Gestisce altre eccezioni impreviste durante la chiamata API
             msg = f"Eccezione imprevista durante chiamata API: {e}"
             logging.error(msg)
-            send_telegram_message(msg, telegram_chat_id)
+            asyncio.run(send_telegram_message(msg, telegram_chat_id))
             return # Esce per eccezione imprevista
 
 
@@ -139,7 +139,7 @@ def import_nft_collections_via_api():
     if not isinstance(data, list):
         msg = "Il payload ricevuto (da mock o API) NON è un array di elementi processabili."
         logging.error(msg)
-        send_telegram_message(msg, telegram_chat_id)
+        asyncio.run(send_telegram_message(msg, telegram_chat_id))
         # Se eravamo in modalità API e il salvataggio è avvenuto, includi questa info
         final_save_status = api_response_dump_status if not mock_mode else "skipped"
         # Invia un riepilogo di errore parziale se possibile, ma senza contatori di insert/skip/error
