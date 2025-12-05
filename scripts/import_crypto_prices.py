@@ -306,7 +306,7 @@ def import_crypto_data_via_api():
         )
         print(f"Summary: {summary_msg}")
         if telegram_chat_id:
-            send_telegram_message(summary_msg, telegram_chat_id)
+            asyncio.run(send_telegram_message(msg, telegram_chat_id))
         else:
             print("No Telegram chat ID configured")
             logging.warning("No Telegram chat ID configured")
