@@ -1,3 +1,4 @@
+import asyncio
 import os
 import json
 import requests
@@ -118,25 +119,25 @@ def import_fear_greed_data():
                     msg = f"Failed to extract Fear and Greed data in mock mode: value={fear_greed_data['value']}, classification={fear_greed_data['value_classification']}"
                     print(msg)
                     logging.error(msg)
-                    send_telegram_message(msg, telegram_chat_id)
+                    asyncio.run(send_telegram_message(msg, telegram_chat_id))
                     return
             except json.JSONDecodeError as e:
                 msg = f"Errore parsing JSON nel file mock {fixed_mock_file_path}: {e}"
                 print(msg)
                 logging.error(msg)
-                send_telegram_message(msg, telegram_chat_id)
+                asyncio.run(send_telegram_message(msg, telegram_chat_id))
                 return
             except Exception as e:
                 msg = f"Errore generico caricamento file mock {fixed_mock_file_path}: {e}"
                 print(msg)
                 logging.error(msg)
-                send_telegram_message(msg, telegram_chat_id)
+                asyncio.run(send_telegram_message(msg, telegram_chat_id))
                 return
         else:
             msg = f"Mock file non trovato: {fixed_mock_file_path}. Disabling mock mode and exiting."
             print(msg)
             logging.warning(msg)
-            send_telegram_message(msg, telegram_chat_id)
+            asyncio.run(send_telegram_message(msg, telegram_chat_id))
             return
     else:
         print("Making real API call to CoinMarketCap")
@@ -180,7 +181,7 @@ def import_fear_greed_data():
                 msg = f"Failed to extract Fear and Greed data: value={fear_greed_data['value']}, classification={fear_greed_data['value_classification']}, raw_data={json.dumps(cmc_data, indent=2)}"
                 print(msg)
                 logging.error(msg)
-                send_telegram_message(msg, telegram_chat_id)
+                asyncio.run(send_telegram_message(msg, telegram_chat_id))
                 return
 
             # Salva risposta API
@@ -199,13 +200,13 @@ def import_fear_greed_data():
             msg = f"Errore chiamata API: {e}"
             print(msg)
             logging.error(msg)
-            send_telegram_message(msg, telegram_chat_id)
+            asyncio.run(send_telegram_message(msg, telegram_chat_id))
             return
         except Exception as e:
             msg = f"Eccezione imprevista durante chiamata API: {e}"
             print(msg)
             logging.error(msg)
-            send_telegram_message(msg, telegram_chat_id)
+            asyncio.run(send_telegram_message(msg, telegram_chat_id))
             return
 
     # --- 2. Validazione e preparazione dati ---
@@ -218,7 +219,7 @@ def import_fear_greed_data():
         msg = f"Errore connessione al database: {e}"
         print(msg)
         logging.error(msg)
-        send_telegram_message(msg, telegram_chat_id)
+        asyncio.run(send_telegram_message(msg, telegram_chat_id))
         return
 
     # Query di inserimento
@@ -272,7 +273,7 @@ def import_fear_greed_data():
         )
         print(f"Summary: {summary_msg}")
         if telegram_chat_id:
-            send_telegram_message(summary_msg, telegram_chat_id)
+            asyncio.run(send_telegram_message(summary_msg, telegram_chat_id))
         else:
             print("No Telegram chat ID configured")
             logging.warning("No Telegram chat ID configured")
@@ -280,7 +281,7 @@ def import_fear_greed_data():
         msg = f"Error generating summary message: {e}"
         print(msg)
         logging.error(msg)
-        send_telegram_message(msg, telegram_chat_id)
+        asyncio.run(send_telegram_message(msg, telegram_chat_id))
         summary_msg = f"Processed: {total_elements}, Inserted: {inserted_count}, Skipped: {skipped_date_mismatch}, Errors: {failed_count}, Status: {file_save_status}"
 
     print("Fear and Greed Index import completed")
