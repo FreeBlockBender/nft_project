@@ -92,9 +92,9 @@ def format_marketing_x_post():
     ]
 
     value = [
-        "@NFTalertX – free pro tools:\n• Live Golden/Death Cross alerts\n• Instant MA charts (20-200 DMA)\n• Real-time sell signals",
+        "We give free pro tools:\n• Live Golden/Death Cross alerts\n• Instant MA charts (20-200 DMA)\n• Real-time sell signals",
         "Free signals + charts at @NFTalertX:\n• Golden & Death Crosses\n• Moving averages on demand\n• Know exactly when to take profits",
-        "@NFTalertX gives you:\n• Live technical alerts\n• Pro charts in seconds\n• Stop guessing, start managing",
+        "We give you:\n• Live technical alerts\n• Pro charts in seconds\n• Stop guessing, start managing",
     ]
 
     cta = [
