@@ -82,66 +82,34 @@ def format_golden_cross_x_msg(obj) -> str:
 
 
 def format_marketing_x_post():
-    openings = [
-        "Holding an NFT that already 3x’d and don’t know when to sell?",
-        "Still guessing if this pump has legs or about to dump?",
-        "Golden Cross just printed n a top 10 collection right now.",
-        "Your bags are up 800%on your favorite collection.",
-        "Death Cross forming o — now what?",
-        "Most holders sell too early. Smart ones use data.",
-        "Waiting for the top tick is gambling.",
-        "The same chart, different decisions.",
+    hooks = [
+        "Your NFT just 5x’d — when do you sell?",
+        "Golden Cross just hit a top collection.",
+        "Death Cross forming… still holding?",
+        "Bags up 800%. Now what?",
+        "Most sell too early. Smart ones use data.",
+        "This pump still has legs?",
     ]
 
-    core_value = [
-        "At @NFTalertX we give you institutional-grade tools — 100% free:\n\n"
-        "• Live Golden/Death Cross signals (short + long term)\n"
-        "• 20/50/100/200 DMA charts for every major collection\n"
-        "• Real-time bullish/bearish technical alerts\n"
-        "• Active portfolio management — know exactly when to take profits\n"
-        "• Just type any collection name → get pro chart in seconds",
-
-        "Active NFT portfolio management is here:\n\n"
-        "@NFTalertX delivers:\n"
-        "• Instant 20/50/100/200 moving average charts\n"
-        "• Automated Golden & Death Cross alerts\n"
-        "• Daily social sentiment heatmaps\n"
-        "• Direct access to founders who’ve traded NFTs since 2021\n\n"
-        "Stop hoping. Start managing.",
-
-        "We turned NFT trading from gambling into a science:\n\n"
-        "• Real-time technical signals (Golden/Death Crosses)\n"
-        "• Moving average charts on demand\n"
-        "• Social sentiment tracking (before Twitter knows)\n"
-        "• Veteran traders & founders in the chat 24/7\n\n"
-        "All inside one free channel.",
-        
-        "You don’t need another 100x call.\n"
-        "You need to protect the 100x you already have.\n\n"
-        "@NFTalertX gives you:\n"
-        "• Precise sell signals using 50/200 DMA\n"
-        "• Golden Cross confirmation before the real move\n"
-        "• Daily sentiment reports\n"
-        "• Charts on demand — just ask",
+    value = [
+        "@NFTalertX – free pro tools:\n• Live Golden/Death Cross alerts\n• Instant MA charts (20-200 DMA)\n• Real-time sell signals",
+        "Free signals + charts at @NFTalertX:\n• Golden & Death Crosses\n• Moving averages on demand\n• Know exactly when to take profits",
+        "@NFTalertX gives you:\n• Live technical alerts\n• Pro charts in seconds\n• Stop guessing, start managing",
     ]
 
-    closings = [
-        "Join the only technical-analysis-first NFT community:\nhttps://t.me/NFTAlertXComm",
-        "Turn your NFT bags into a managed portfolio:\nhttps://t.me/NFTAlertXComm",
-        "Data > Hope. Join the free channel now:\nhttps://t.me/NFTAlertXComm",
-        "Stop selling too early. Start using moving averages:\nhttps://t.me/NFTAlertXComm",
-        "Where serious NFT holders come to manage profits:\nhttps://t.me/NFTAlertXComm",
-        "Golden Cross just fired — want to know which one?\nhttps://t.me/NFTAlertXComm",
-        "Free charts. Free signals. veteran insight:\nhttps://t.me/NFTAlertXComm",
+    cta = [
+        "Join free → https://t.me/NFTAlertXComm",
+        "Data > FOMO → https://t.me/NFTAlertXComm",
+        "Free charts & signals → https://t.me/NFTAlertXComm",
+        "Stop hoping, start winning → https://t.me/NFTAlertXComm",
     ]
 
-    emojis = ["📈", "📉", "❌", "🔍", "🔎", "🤖", "🚀", "🔷", "🔥", "⌛", "⌛", "📊"]
+    emojis = ["📈", "🚀", "🔷", "📊", "🔥", "💎", "⚡", "👇"]
 
     post = (
-        random.choice(openings) + "\n\n" +
-        random.choice(core_value) + "\n\n" +
-        random.choice(closings) + "\n\n" +
-        " ".join(random.sample(emojis, k=random.randint(3,6)))
+        random.choice(hooks) + "\n\n" +
+        random.choice(value) + "\n\n" +
+        random.choice(cta) + "\n\n" +
+        " ".join(random.sample(emojis, k=random.randint(3,5)))
     )
-    
     return post
