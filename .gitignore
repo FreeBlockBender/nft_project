@@ -25,3 +25,4 @@ venv/
 *.log
 
 /dbt_project
+.github/copilot-instructions.md
