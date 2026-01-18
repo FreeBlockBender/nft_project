@@ -5,7 +5,7 @@ import io
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
-from datetime import datetime, timedelta
+from datetime import datetime
 from app.telegram.utils.telegram_query import get_collection_chart_data
 from app.golden_cross.moving_average import calculate_sma
 
