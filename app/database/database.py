@@ -79,6 +79,7 @@ def create_tables_if_not_exist(logger=None):
         is_native INTEGER,
         floor_native REAL,
         floor_usd REAL,
+        ranking INTEGER,
         ma_short REAL,
         ma_long REAL,
         ma_short_previous_day REAL,
