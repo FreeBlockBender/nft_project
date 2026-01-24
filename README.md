@@ -141,3 +141,61 @@ git push origin feature/your-feature-name
 | `meta`                | Fetches detailed metadata for an NFT collection.                 |
 | `ma_native`           | Displays moving averages for the collection in native currency.  |
 | `ma_usd`             | Displays moving averages for the collection in USD.              |
+
+Tabelle database:
+
+CREATE TABLE "historical_nft_data" (
+    collection_identifier TEXT,
+    contract_address TEXT,
+    slug TEXT,
+    latest_floor_date TEXT,
+    latest_floor_timestamp TEXT,
+    floor_native REAL,
+    floor_usd REAL,
+    chain TEXT,
+    chain_currency_symbol TEXT,
+    marketplace_source TEXT,
+    ranking INTEGER,
+    unique_owners INTEGER,
+    total_supply INTEGER,
+    listed_count INTEGER,
+    best_price_url TEXT,
+    sale_count_24h INTEGER,
+    sale_volume_native_24h REAL,
+    highest_sale_native_24h REAL,
+    lowest_sale_native_24h REAL,
+    PRIMARY KEY (slug, chain, latest_floor_date)
+)
+
+
+CREATE TABLE "historical_golden_crosses" (
+    slug TEXT,
+    chain TEXT,
+    date TEXT,
+    inserted_ts TEXT,
+    is_native INTEGER,
+    floor_native REAL,
+    floor_usd REAL,
+    ma_short REAL,
+    ma_long REAL,
+    ma_short_previous_day REAL,
+    ma_long_previous_day REAL,
+    ma_short_period INTEGER,
+    ma_long_period INTEGER, telegram_sent INTEGER DEFAULT 0, x_sent INTEGER DEFAULT 0,
+    PRIMARY KEY (date, slug, chain, ma_short_period, ma_long_period)
+)
+
+
+CREATE TABLE "nft_collections" (
+	"id"	INTEGER,
+	"collection_identifier"	TEXT,
+	"contract_address"	TEXT,
+	"slug"	TEXT,
+	"name"	TEXT,
+	"chain"	TEXT,
+	"chain_currency_symbol"	TEXT,
+	"categories"	TEXT,
+	"x_page"	TEXT,
+	"marketplace_url"	TEXT,
+	PRIMARY KEY("id" AUTOINCREMENT)
+)

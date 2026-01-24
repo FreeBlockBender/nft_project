@@ -23,11 +23,11 @@ def get_floor_series(conn, slug, floor_field):
     return cur.fetchall()
 
 def get_floor_usd_and_native(conn, slug, date, chain):
-    """Recupera floor_native e floor_usd per collezione, data e CHAIN specifica."""
+    """Recupera floor_native, floor_usd e ranking per collezione, data e CHAIN specifica."""
     cur = conn.cursor()
     cur.execute(
         """
-        SELECT floor_native, floor_usd 
+        SELECT floor_native, floor_usd, ranking 
         FROM historical_nft_data 
         WHERE slug = ? 
           AND latest_floor_date = ? 
@@ -35,10 +35,10 @@ def get_floor_usd_and_native(conn, slug, date, chain):
         """,
         ( slug, date, chain)
     )
-    return cur.fetchone() or (None, None)
+    return cur.fetchone() or (None, None, None)
 
 def insert_golden_cross(conn, slug, chain, date, is_native,
-                        floor_native, floor_usd,
+                        floor_native, floor_usd, ranking,
                         ma_short_today, ma_long_today,
                         ma_short_yesterday, ma_long_yesterday,
                         short_period, long_period):
@@ -50,11 +50,11 @@ def insert_golden_cross(conn, slug, chain, date, is_native,
     try:
         cur.execute("""
             INSERT INTO historical_golden_crosses 
-            (slug, chain, date, inserted_ts, is_native, floor_native, floor_usd,
+            (slug, chain, date, inserted_ts, is_native, floor_native, floor_usd, ranking,
              ma_short, ma_long, ma_short_previous_day, ma_long_previous_day, ma_short_period, ma_long_period)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (slug, chain, date, datetime.utcnow().isoformat(), int(is_native),
-              floor_native, floor_usd,
+              floor_native, floor_usd, ranking,
               ma_short_today, ma_long_today, ma_short_yesterday, ma_long_yesterday,
               short_period, long_period))
         return True  # Inserimento ok
@@ -134,11 +134,11 @@ def detect_all_historical_golden_crosses(
                     continue
 
                 if is_golden_cross(ma_short_today, ma_long_today, ma_short_yesterday, ma_long_yesterday):
-                    floor_native, floor_usd = get_floor_usd_and_native(conn, slug, date_today, chain)
+                    floor_native, floor_usd, ranking = get_floor_usd_and_native(conn, slug, date_today, chain)
                     golden_cross_detected += 1
                     inserted = insert_golden_cross(
                         conn, slug, chain, date_today, is_native,
-                        floor_native, floor_usd,
+                        floor_native, floor_usd, ranking,
                         ma_short_today, ma_long_today,
                         ma_short_yesterday, ma_long_yesterday,
                         short_period, long_period
@@ -193,10 +193,10 @@ def detect_current_golden_crosses(conn, short_period, long_period,
                 print(f"[{idx}/{total}] {slug}: dati mancanti per {floor_field} ({date_today})")
                 continue
             if is_golden_cross(ma_short_today, ma_long_today, ma_short_yesterday, ma_long_yesterday):
-                floor_native, floor_usd = get_floor_usd_and_native(conn, slug, date_today, chain)
+                floor_native, floor_usd, ranking = get_floor_usd_and_native(conn, slug, date_today, chain)
                 golden_cross_detected += 1
                 inserted = insert_golden_cross(conn, slug, chain, date_today, is_native,
-                                    floor_native, floor_usd,
+                                    floor_native, floor_usd, ranking,
                                     ma_short_today, ma_long_today,
                                     ma_short_yesterday, ma_long_yesterday,
                                     short_period, long_period)
