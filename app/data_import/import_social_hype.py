@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 from app.config.config import load_config
 from app.database.db_connection import get_db_connection
-from app.telegram.utils.telegram_notifier import send_telegram_message
+from app.telegram.utils.telegram_notifier import send_telegram_message, get_monitoring_chat_id
 import asyncio
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ def get_nft_market_sentiment():
         }
 
         payload = {
-            "model": "grok-2",
+            "model": "grok-3",
             "messages": [
                 {
                     "role": "user",
@@ -105,6 +105,8 @@ def get_nft_market_sentiment():
 
     except requests.exceptions.RequestException as e:
         logger.error(f"Errore API Grok: {e}")
+        if hasattr(e.response, 'text'):
+            logger.error(f"Response body: {e.response.text}")
         return None
 
 
@@ -156,13 +158,15 @@ def import_nft_social_hype():
     Funzione principale: importa il sentiment del mercato NFT via Grok e lo salva nel DB.
     """
     logger.info("Inizio import social hype NFT...")
+    
+    monitoring_chat_id = get_monitoring_chat_id()
 
     sentiment_data = get_nft_market_sentiment()
 
     if sentiment_data:
         if save_social_hype_to_db(sentiment_data):
             message = (
-                f"🎨 **NFT Social Hype Update**\n\n"
+                f"🎨 <b>NFT Social Hype Update</b>\n\n"
                 f"📊 Hype Score: {sentiment_data.get('hype_score')}/100\n"
                 f"😊 Sentiment: {sentiment_data.get('sentiment')}\n"
                 f"📈 Trend: {sentiment_data.get('trend')}\n"
@@ -171,18 +175,18 @@ def import_nft_social_hype():
                 f"✅ Social hype aggiornato con successo!"
             )
             logger.info("Social hype importato correttamente!")
-            asyncio.run(send_telegram_message(message, is_monitoring=True))
+            asyncio.run(send_telegram_message(message, monitoring_chat_id))
         else:
             logger.error("Errore nel salvataggio dei dati di hype nel database")
             asyncio.run(send_telegram_message(
                 "❌ Errore nel salvataggio dei dati di social hype nel database",
-                is_monitoring=True
+                monitoring_chat_id
             ))
     else:
         logger.error("Errore nel recupero dei dati di sentiment da Grok")
         asyncio.run(send_telegram_message(
             "❌ Errore nel recupero dei dati di sentiment da Grok",
-            is_monitoring=True
+            monitoring_chat_id
         ))
 
 
