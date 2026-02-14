@@ -92,6 +92,33 @@ def create_tables_if_not_exist(logger=None):
     if logger:
         logger.info("Tabella historical_golden_crosses creata.")
 
+    # Tabella: nft_social_hype
+    # Misura il sentiment e l'hype del mercato NFT generale usando l'API di Grok
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS nft_social_hype (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT,
+        timestamp TEXT,
+        hype_score INTEGER,
+        sentiment TEXT,
+        trend TEXT,
+        keywords TEXT,
+        summary TEXT,
+        raw_response TEXT,
+        created_at TEXT,
+        UNIQUE(date)
+    );
+    """)
+    if logger:
+        logger.info("Tabella nft_social_hype creata.")
+
+    # Indice sulla tabella nft_social_hype
+    cursor.execute("""
+    CREATE INDEX IF NOT EXISTS idx_social_hype_date ON nft_social_hype (date DESC);
+    """)
+    if logger:
+        logger.info("Indice idx_social_hype_date creato sulla tabella nft_social_hype.")
+
     conn.commit()
     conn.close()
 

@@ -17,6 +17,7 @@ from app.telegram.commands.meta import meta_handler
 from app.telegram.commands.ma_native import ma_native_handler
 from app.telegram.commands.ma_usd import ma_usd_handler
 from app.telegram.commands.historical_data_stats import historical_data_stats_handler
+from app.telegram.commands.vibes import vibes_handler, import_vibes_handler
 from app.telegram.utils.pagination import pagination_callback_handler
 from app.telegram.utils.error_handler import error_handler
 
@@ -43,6 +44,8 @@ def main():
     application.add_handler(ma_native_handler)
     application.add_handler(ma_usd_handler)
     application.add_handler(historical_data_stats_handler)
+    application.add_handler(vibes_handler)
+    application.add_handler(import_vibes_handler)
     application.add_handler(pagination_callback_handler)
     application.add_error_handler(error_handler)
 

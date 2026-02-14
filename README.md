@@ -67,10 +67,12 @@ nft_project/
 
 ---
 
-## 🤖 Telgram bot commands
+## 🤖 Telegram bot commands
 
 | Command               | Description                                                      |
 |-----------------------|------------------------------------------------------------------|
+| `vibes`               | 🎨 Mostra il social hype e sentiment attuale del mercato NFT (Grok AI). |
+| `import_vibes`        | 🔄 Genera nuovi dati di social hype usando l'API di Grok.        |
 | `check_daily_insert`  | Verifies the number of today's inserts in `historical_nft_data`. |
 | `slug_list_by_prefix` | Retrieves collection slugs that start with a specific prefix.     |
 | `slug_list_by_chain`  | Lists slugs filtered by the related blockchain.                  |
@@ -78,6 +80,19 @@ nft_project/
 | `meta`                | Fetches detailed metadata for an NFT collection.                 |
 | `ma_native`           | Displays moving averages for the collection in native currency.  |
 | `ma_usd`             | Displays moving averages for the collection in USD.              |
+
+---
+
+## 🎨 NFT Social Hype (Powered by Grok AI)
+
+New feature per misurare il "vibe" generale del mercato NFT usando l'API di Grok. Analizza il sentiment della comunità crypto e fornisce score di hype in tempo reale.
+
+**Configurazione rapida:**
+1. Aggiungi `GROK_API_KEY` al `.env`
+2. Esegui `/import_vibes` per generare i dati
+3. Usa `/vibes` per vedere il sentiment attuale
+
+📖 Per dettagli completi: vedi [doc/SOCIAL_HYPE_SETUP.md](doc/SOCIAL_HYPE_SETUP.md)
 
 ---
 
