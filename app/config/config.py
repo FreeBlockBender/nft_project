@@ -30,5 +30,7 @@ def load_config():
         "SMA_100_MISSING_THRESH": os.getenv("SMA_100_MISSING_THRESH"),
         "SMA_200_MISSING_THRESH": os.getenv("SMA_200_MISSING_THRESH"),
         "ALLOWED_TELEGRAM_IDS": os.getenv("ALLOWED_TELEGRAM_IDS"),
-        "MNEMONIC": os.getenv("MNEMONIC")  # Farcaster mnemonic
+        "MNEMONIC": os.getenv("MNEMONIC"),  # Farcaster mnemonic
+        "GROK_API_KEY": os.getenv("GROK_API_KEY"),
+        "GROK_API_ENDPOINT": os.getenv("GROK_API_ENDPOINT", "https://api.x.ai/v1")
     }
