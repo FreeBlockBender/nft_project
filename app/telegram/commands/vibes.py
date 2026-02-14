@@ -5,8 +5,7 @@ Mostra il social hype e sentiment attuale del mercato NFT.
 
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
-from app.telegram.utils.auth import is_authorized
-from app.telegram.utils.error_handler import access_denied
+from app.telegram.utils.auth import is_authorized, access_denied
 from app.database.db_connection import get_db_connection
 import logging
 
