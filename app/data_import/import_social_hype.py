@@ -31,24 +31,27 @@ def get_nft_market_sentiment():
 
     # Prompt per Grok: analizzare il sentiment del mercato NFT
     prompt = """
-    Analizza il sentimento attuale del mercato NFT globale basandoti su:
-    1. Tendenze recenti del mercato NFT
-    2. Sentiment della comunità crypto
-    3. Attività in piattaforme NFT major (OpenSea, Magic Eden, etc.)
-    4. Notizie recenti su blockchain e NFT
-    5. Atteggiamento dei creator e degli investitori
+    Analyze the current global NFT market sentiment based on real-time data from:
+    1. Recent NFT market trends (e.g., trading volume, floor prices, sales data).
+    2. Crypto community sentiment (e.g., discussions on forums, social media).
+    3. Activity on major NFT platforms (OpenSea, Magic Eden, Blur, etc.).
+    4. Recent news on blockchain and NFTs (e.g., regulatory updates, tech advancements).
+    5. Attitudes of creators, investors, and influencers (e.g., statements, investments).
 
-    Fornisci la risposta RIGOROSAMENTE in questo formato JSON valido senza testo aggiuntivo:
-    {{
-        "hype_score": <numero da 0 a 100>,
+    Use available tools like web search, X searches, and browsing to gather fresh, diverse sources. Ensure analysis is balanced and evidence-based.
+
+    Provide the response STRICTLY in this valid JSON format without any additional text or markdown:
+
+    {
+        "hype_score": <integer from 0 to 100>,
         "sentiment": "<POSITIVE|NEUTRAL|NEGATIVE>",
         "trend": "<UP|STABLE|DOWN>",
-        "keywords": "<3-5 parole chiave separate da virgola>",
-        "summary": "<massimo 200 caratteri di riassunto>",
-        "reasoning": "<spiegazione breve del score>"
-    }}
-    
-    Sii RIGOROSO nel formato JSON - nessun testo prima o dopo.
+        "keywords": "<3-5 keywords separated by comma>",
+        "summary": "<summary in English, maximum 200 characters>",
+        "reasoning": "<brief explanation of the score, including key evidence>"
+    }
+
+    Be STRICT in the JSON format - no text before, after, or outside the object.
     """
 
     try:
