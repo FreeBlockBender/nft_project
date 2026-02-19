@@ -10,5 +10,11 @@ def get_db_connection():
     """
     Restituisce una connessione SQLite al database NFT.
     Usa il percorso del DB definito in config.py (.env).
+    Configura timeout e WAL mode per migliorare l'accesso concorrente.
     """
-    return sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10.0, check_same_thread=False)
+    # Enable WAL mode for better concurrent access
+    conn.execute("PRAGMA journal_mode=WAL")
+    # Increase busy timeout
+    conn.execute("PRAGMA busy_timeout=5000")
+    return conn
