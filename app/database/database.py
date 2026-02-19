@@ -63,7 +63,8 @@ def create_tables_if_not_exist(logger=None):
         name TEXT,
         chain TEXT,
         chain_currency_symbol TEXT,
-        categories TEXT
+        categories TEXT,
+        x_page TEXT
     );
     """)
     if logger:
@@ -118,6 +119,53 @@ def create_tables_if_not_exist(logger=None):
     """)
     if logger:
         logger.info("Indice idx_social_hype_date creato sulla tabella nft_social_hype.")
+
+    # Tabella: nft_x_sentiment
+    # Tracks X (Twitter) sentiment for top 100 NFT collections on monthly basis
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS nft_x_sentiment (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        collection_identifier TEXT,
+        slug TEXT,
+        chain TEXT,
+        date TEXT,
+        timestamp TEXT,
+        sentiment_score INTEGER,
+        sentiment_category TEXT,
+        bullish_indicators TEXT,
+        bearish_indicators TEXT,
+        key_topics TEXT,
+        community_engagement INTEGER,
+        volume_activity INTEGER,
+        raw_grok_response TEXT,
+        created_at TEXT,
+        UNIQUE(collection_identifier, chain, date)
+    );
+    """)
+    if logger:
+        logger.info("Tabella nft_x_sentiment creata.")
+
+    # Indice sulla tabella nft_x_sentiment
+    cursor.execute("""
+    CREATE INDEX IF NOT EXISTS idx_x_sentiment_collection_date ON nft_x_sentiment (collection_identifier, chain, date DESC);
+    """)
+    if logger:
+        logger.info("Indice idx_x_sentiment_collection_date creato sulla tabella nft_x_sentiment.")
+
+    # Tabella: nft_x_sentiment_schedule
+    # Tracks update schedule for monthly X sentiment fetching
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS nft_x_sentiment_schedule (
+        collection_identifier TEXT PRIMARY KEY,
+        slug TEXT,
+        chain TEXT,
+        last_updated_date TEXT,
+        last_grok_call TEXT,
+        status TEXT
+    );
+    """)
+    if logger:
+        logger.info("Tabella nft_x_sentiment_schedule creata.")
 
     conn.commit()
     conn.close()
