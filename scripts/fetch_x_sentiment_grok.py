@@ -314,21 +314,20 @@ async def process_collections(max_per_run: int = 3):
         
         logger.info(f"Found {len(collections)} collections needing updates, processing top {max_per_run}...")
         
-        # Get collection names for better context
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
         processed_count = 0
         success_count = 0
         
         for collection_id, slug, chain, x_handle, ranking in collections[:max_per_run]:
-            # Get collection name
-            cursor.execute(
+            # Get collection name (open fresh connection for this query)
+            conn_lookup = get_db_connection()
+            cursor_lookup = conn_lookup.cursor()
+            cursor_lookup.execute(
                 "SELECT name FROM nft_collections WHERE slug = ? AND chain = ?",
                 (slug, chain)
             )
-            name_result = cursor.fetchone()
+            name_result = cursor_lookup.fetchone()
             collection_name = name_result[0] if name_result else slug
+            conn_lookup.close()  # Close immediately after lookup
             
             # Clean x_handle (remove @ if present)
             clean_handle = x_handle.lstrip('@') if x_handle else None
@@ -352,8 +351,6 @@ async def process_collections(max_per_run: int = 3):
             # Rate limiting - small delay between API calls
             if processed_count < max_per_run:
                 await asyncio.sleep(2)
-        
-        conn.close()
         
         # Send summary to monitoring chat
         summary_msg = f"✅ X Sentiment Analysis Complete\n\n📊 Processed: {processed_count} collections\n✔️ Successful: {success_count}\n\nNext: Run again in 24 hours to process next batch."
