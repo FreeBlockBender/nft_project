@@ -163,13 +163,16 @@ async def call_grok_api(prompt: str, config: dict) -> dict:
         logger.error("GROK_API_KEY not configured")
         return {}
     
+    # Support both Bearer token and direct key formats
+    auth_header = api_key if api_key.startswith("Bearer ") else f"Bearer {api_key}"
+    
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": auth_header,
         "Content-Type": "application/json"
     }
     
     payload = {
-        "model": "grok-2",
+        "model": "grok-3",  # Try grok-3 (most recent stable model)
         "messages": [
             {
                 "role": "system",
@@ -187,6 +190,16 @@ async def call_grok_api(prompt: str, config: dict) -> dict:
     try:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(api_endpoint, json=payload, headers=headers)
+            
+            # Log detailed request/response for debugging
+            logger.debug(f"Grok Request - Endpoint: {api_endpoint}")
+            logger.debug(f"Grok Request - Headers: {headers}")
+            logger.debug(f"Grok Response Status: {response.status_code}")
+            
+            if response.status_code != 200:
+                logger.error(f"Grok API returned {response.status_code}: {response.text}")
+                return {}
+            
             response.raise_for_status()
             
             result = response.json()
