@@ -157,7 +157,7 @@ async def call_grok_api(prompt: str, config: dict) -> dict:
     logger = logging.getLogger(__name__)
     
     api_key = config.get("GROK_API_KEY")
-    api_endpoint = config.get("GROK_API_ENDPOINT", "https://api.x.ai/v1/chat/completions")
+    api_endpoint = config.get("GROK_API_ENDPOINT") or "https://api.x.ai/v1/chat/completions"
     
     if not api_key:
         logger.error("GROK_API_KEY not configured")
@@ -294,9 +294,8 @@ async def process_collections(max_per_run: int = 3):
         if not collections:
             logger.info("No collections need sentiment update.")
             await send_telegram_message(
-                config.get("TELEGRAM_MONITORING_CHAT_ID"),
                 "🔍 X Sentiment Analysis: No collections need updates (all within 30-day window).",
-                config
+                config.get("TELEGRAM_MONITORING_CHAT_ID")
             )
             return
         
@@ -318,12 +317,15 @@ async def process_collections(max_per_run: int = 3):
             name_result = cursor.fetchone()
             collection_name = name_result[0] if name_result else slug
             
-            logger.info(f"Processing {collection_name} (@{x_handle}) - Ranking: {ranking}")
+            # Clean x_handle (remove @ if present)
+            clean_handle = x_handle.lstrip('@') if x_handle else None
+            
+            logger.info(f"Processing {collection_name} (@{clean_handle}) - Ranking: {ranking}")
             
             # Generate prompt and call Grok
-            prompt = get_grok_x_sentiment_prompt(collection_name, x_handle)
+            prompt = get_grok_x_sentiment_prompt(collection_name, clean_handle)
             
-            if not prompt:
+            if not prompt or not clean_handle:
                 logger.warning(f"Skipping {slug}: no valid X handle")
                 continue
             
@@ -343,9 +345,8 @@ async def process_collections(max_per_run: int = 3):
         # Send summary to monitoring chat
         summary_msg = f"✅ X Sentiment Analysis Complete\n\n📊 Processed: {processed_count} collections\n✔️ Successful: {success_count}\n\nNext: Run again in 24 hours to process next batch."
         await send_telegram_message(
-            config.get("TELEGRAM_MONITORING_CHAT_ID"),
             summary_msg,
-            config
+            config.get("TELEGRAM_MONITORING_CHAT_ID")
         )
         
         logger.info(f"X sentiment analysis complete: {success_count}/{processed_count} successful")
@@ -353,9 +354,8 @@ async def process_collections(max_per_run: int = 3):
     except Exception as e:
         logger.error(f"X sentiment analysis failed: {e}")
         await send_telegram_message(
-            config.get("TELEGRAM_MONITORING_CHAT_ID"),
             f"❌ X Sentiment Analysis Error: {str(e)}",
-            config
+            config.get("TELEGRAM_MONITORING_CHAT_ID")
         )
 
 
