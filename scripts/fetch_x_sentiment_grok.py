@@ -7,6 +7,7 @@ Uses natural language analysis to gauge community sentiment, engagement, and mar
 
 import asyncio
 import logging
+import time
 from datetime import datetime, timedelta
 from app.config.config import load_config
 from app.config.logging_config import setup_logging
@@ -14,6 +15,7 @@ from app.database.db_connection import get_db_connection
 from app.telegram.utils.telegram_notifier import send_telegram_message
 import httpx
 import json
+import sqlite3
 
 def get_grok_x_sentiment_prompt(collection_name: str, x_handle: str) -> str:
     """
@@ -246,44 +248,57 @@ def store_sentiment_result(collection_id: str, slug: str, chain: str, sentiment_
         logger.warning(f"No sentiment data to store for {slug} on {chain}")
         return False
     
-    try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        now = datetime.utcnow()
-        current_date = now.date().isoformat()
-        current_timestamp = now.isoformat()
-        
-        cursor.execute("""
-        INSERT OR REPLACE INTO nft_x_sentiment (
-            collection_identifier, slug, chain, date, timestamp,
-            sentiment_score, sentiment_category,
-            bullish_indicators, bearish_indicators,
-            key_topics, community_engagement, volume_activity,
-            raw_grok_response, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            collection_id, slug, chain, current_date, current_timestamp,
-            sentiment_data.get("sentiment_score", 0),
-            sentiment_data.get("sentiment_category", "NEUTRAL"),
-            sentiment_data.get("bullish_indicators", ""),
-            sentiment_data.get("bearish_indicators", ""),
-            sentiment_data.get("key_topics", ""),
-            sentiment_data.get("community_engagement", 5),
-            sentiment_data.get("volume_activity", 5),
-            json.dumps(sentiment_data),
-            current_timestamp
-        ))
-        
-        conn.commit()
-        conn.close()
-        
-        logger.info(f"Stored sentiment for {slug} ({chain}): score={sentiment_data.get('sentiment_score')}, category={sentiment_data.get('sentiment_category')}")
-        return True
-        
-    except Exception as e:
-        logger.error(f"Failed to store sentiment for {slug} ({chain}): {e}")
-        return False
+    max_retries = 3
+    retry_count = 0
+    
+    while retry_count < max_retries:
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            
+            now = datetime.utcnow()
+            current_date = now.date().isoformat()
+            current_timestamp = now.isoformat()
+            
+            cursor.execute("""
+            INSERT OR REPLACE INTO nft_x_sentiment (
+                collection_identifier, slug, chain, date, timestamp,
+                sentiment_score, sentiment_category,
+                bullish_indicators, bearish_indicators,
+                key_topics, community_engagement, volume_activity,
+                raw_grok_response, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                collection_id, slug, chain, current_date, current_timestamp,
+                sentiment_data.get("sentiment_score", 0),
+                sentiment_data.get("sentiment_category", "NEUTRAL"),
+                sentiment_data.get("bullish_indicators", ""),
+                sentiment_data.get("bearish_indicators", ""),
+                sentiment_data.get("key_topics", ""),
+                sentiment_data.get("community_engagement", 5),
+                sentiment_data.get("volume_activity", 5),
+                json.dumps(sentiment_data),
+                current_timestamp
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"Stored sentiment for {slug} ({chain}): score={sentiment_data.get('sentiment_score')}, category={sentiment_data.get('sentiment_category')}")
+            return True
+            
+        except sqlite3.OperationalError as e:
+            if "database is locked" in str(e) and retry_count < max_retries - 1:
+                retry_count += 1
+                logger.warning(f"Database locked for {slug}. Retry {retry_count}/{max_retries}...")
+                time.sleep(1)
+                continue
+            else:
+                logger.error(f"Failed to store sentiment for {slug} ({chain}): {e}")
+                return False
+        except Exception as e:
+            logger.error(f"Failed to store sentiment for {slug} ({chain}): {e}")
+            return False
 
 
 async def process_collections(max_per_run: int = 3):
