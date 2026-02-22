@@ -72,8 +72,13 @@ def get_nft_market_sentiment():
             "max_tokens": 500
         }
 
+        # Normalize endpoint - remove trailing /chat/completions if already present
+        clean_endpoint = grok_endpoint.rstrip('/')
+        if clean_endpoint.endswith("/chat/completions"):
+            clean_endpoint = clean_endpoint[:-len("/chat/completions")]
+
         response = requests.post(
-            f"{grok_endpoint}/chat/completions",
+            f"{clean_endpoint}/chat/completions",
             json=payload,
             headers=headers,
             timeout=30
