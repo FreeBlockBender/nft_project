@@ -6,8 +6,7 @@ Format: /x_sentiment @handle or /x_sentiment slug-name chain
 
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
-from app.telegram.utils.auth import is_authorized
-from app.telegram.utils.telegram_msg_templates import access_denied, format_error
+from app.telegram.utils.auth import is_authorized, access_denied
 from app.database.db_connection import get_db_connection
 import logging
 
@@ -115,7 +114,7 @@ async def x_sentiment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error fetching X sentiment: {e}")
         await update.message.reply_text(
-            await format_error(f"Failed to retrieve sentiment data: {str(e)}")
+            f"❌ Failed to retrieve sentiment data: {str(e)}"
         )
 
 
@@ -181,7 +180,7 @@ async def x_sentiment_top(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error fetching top sentiments: {e}")
         await update.message.reply_text(
-            await format_error(f"Failed to retrieve sentiment rankings: {str(e)}")
+            f"❌ Failed to retrieve sentiment rankings: {str(e)}"
         )
 
 
