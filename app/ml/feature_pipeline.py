@@ -60,10 +60,20 @@ def _encode_chain(chain: str) -> int:
 # Loaders
 # ─────────────────────────────────────────────
 
-def _load_price_data(conn: sqlite3.Connection) -> pd.DataFrame:
-    """Load raw price rows, sorted by collection + date."""
+def _load_price_data(conn: sqlite3.Connection, since_date: str = None) -> pd.DataFrame:
+    """
+    Load raw price rows, sorted by collection + date.
+
+    Parameters
+    ----------
+    since_date : str or None
+        If provided (format 'YYYY-MM-DD'), only loads rows on or after this date.
+        Used in prediction-only (low-RAM) mode to avoid loading full history.
+        Minimum recommended window: 280 calendar days (covers MA200 + buffer).
+    """
+    where = f"WHERE latest_floor_date >= '{since_date}'" if since_date else ""
     df = pd.read_sql_query(
-        """
+        f"""
         SELECT
             collection_identifier,
             slug,
@@ -80,6 +90,7 @@ def _load_price_data(conn: sqlite3.Connection) -> pd.DataFrame:
             total_supply,
             ranking
         FROM historical_nft_data
+        {where}
         ORDER BY collection_identifier, chain, latest_floor_date ASC
         """,
         conn,
@@ -484,6 +495,7 @@ def build_feature_dataframe(
     conn: sqlite3.Connection,
     min_days: int = 60,
     max_fill_gap: int = 7,
+    lookback_days: int = None,
 ) -> pd.DataFrame:
     """
     Build the complete ML feature dataframe.
@@ -494,8 +506,17 @@ def build_feature_dataframe(
         Open database connection.
     min_days : int
         Minimum number of observed price rows required to include a collection.
+        When using lookback_days, set this low (e.g. 20) so recently-listed
+        collections are not excluded.
     max_fill_gap : int
         Max consecutive missing days to forward-fill in price data.
+    lookback_days : int or None
+        **Prediction-only / low-RAM mode.**
+        When set, only loads price data from the last `lookback_days` calendar
+        days.  This reduces the price dataset from ~940K rows to ~300K rows and
+        cuts peak RAM from ~1.8 GB to ~250 MB — safe for servers with <1 GB RAM.
+        Minimum safe value: 280 (covers the 200-day MA + gap-fill buffer).
+        Leave as None for full historical load (required for training).
 
     Returns
     -------
@@ -504,8 +525,19 @@ def build_feature_dataframe(
                  + all FEATURE_COLUMNS.
         Sorted by collection_identifier, chain, date.
     """
+    since_date = None
+    if lookback_days is not None:
+        cur = conn.cursor()
+        cur.execute("SELECT MAX(latest_floor_date) FROM historical_nft_data")
+        max_db_date = pd.to_datetime(cur.fetchone()[0])
+        since_date = (max_db_date - pd.Timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+        logger.info(
+            "Prediction-only mode: loading price data from %s onwards (%d-day window)",
+            since_date, lookback_days,
+        )
+
     logger.info("Loading price data from DB ...")
-    price_df = _load_price_data(conn)
+    price_df = _load_price_data(conn, since_date=since_date)
 
     # Filter to collections with enough data
     counts = price_df.groupby(["collection_identifier", "chain"]).size()

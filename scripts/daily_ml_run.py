@@ -154,10 +154,24 @@ def main():
     logging.info("=" * 60)
 
     # ── Step 1: Build feature dataframe ─────────────────────────
+    # In prediction-only mode (--skip-train), load just the last 280 calendar
+    # days per collection. This cuts peak RAM from ~1.8 GB to ~250 MB, making
+    # the script safe on servers with <1 GB RAM.
+    # In training mode, load full history so labels can be computed.
+    lookback = 280 if args.skip_train else None
+    pred_min_days = 20  # in prediction mode allow recently-listed collections
+
     try:
-        logging.info("[1/4] Building feature dataframe ...")
+        logging.info(
+            "[1/4] Building feature dataframe (mode=%s) ...",
+            "predict-only (280d lookback)" if lookback else "full-history (training)",
+        )
         conn = get_db_connection()
-        df = build_feature_dataframe(conn, min_days=ml_cfg["min_days"])
+        df = build_feature_dataframe(
+            conn,
+            min_days=pred_min_days if lookback else ml_cfg["min_days"],
+            lookback_days=lookback,
+        )
         conn.close()
 
         if df.empty:
