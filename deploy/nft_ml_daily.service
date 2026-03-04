@@ -1,0 +1,17 @@
+[Unit]
+Description=NFT ML Daily Run — retrain model and send buy/sell signals
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=nft
+WorkingDirectory=/opt/nft_project
+EnvironmentFile=/opt/nft_project/.env
+ExecStart=/opt/nft_project/.venv/bin/python scripts/daily_ml_run.py
+StandardOutput=append:/var/log/nft_ml/daily_ml_run.log
+StandardError=append:/var/log/nft_ml/daily_ml_run.log
+TimeoutStartSec=1800
+
+[Install]
+WantedBy=multi-user.target

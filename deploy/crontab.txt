@@ -1,0 +1,40 @@
+# =============================================================================
+# NFT Project — Crontab (alternative to systemd timer)
+#
+# Install with:
+#   sudo -u nft crontab deploy/crontab.txt
+#
+# Or add to existing:
+#   sudo -u nft crontab -e
+#
+# All times are UTC. Assumed sequence:
+#   05:00  Data import (API, fear/greed, crypto prices)
+#   06:30  Golden cross detection + Telegram notify
+#   07:00  ML retrain + signal prediction + Telegram notify
+#
+# =============================================================================
+
+# Environment
+SHELL=/bin/bash
+PATH=/opt/nft_project/.venv/bin:/usr/local/bin:/usr/bin:/bin
+
+# ── Data imports ──────────────────────────────────────────────────────────────
+# Import NFT floor price data from API
+0 5 * * *  cd /opt/nft_project && .venv/bin/python scripts/import_api_data.py       >> /var/log/nft_ml/import_api.log 2>&1
+
+# Import fear & greed index
+10 5 * * * cd /opt/nft_project && .venv/bin/python scripts/import_fear_greed.py     >> /var/log/nft_ml/import_fear_greed.log 2>&1
+
+# Import cryptocurrency prices (ETH, BTC, SOL, etc.)
+20 5 * * * cd /opt/nft_project && .venv/bin/python scripts/import_crypto_prices.py  >> /var/log/nft_ml/import_crypto.log 2>&1
+
+# ── Golden cross detection + notify ──────────────────────────────────────────
+30 6 * * * cd /opt/nft_project && .venv/bin/python scripts/detect_current_golden_crosses_20_50.py   >> /var/log/nft_ml/golden_cross.log 2>&1
+35 6 * * * cd /opt/nft_project && .venv/bin/python scripts/detect_current_golden_crosses_50_200.py  >> /var/log/nft_ml/golden_cross.log 2>&1
+40 6 * * * cd /opt/nft_project && .venv/bin/python scripts/notify_today_golden_crosses.py           >> /var/log/nft_ml/golden_cross.log 2>&1
+
+# ── ML: daily retrain + signal prediction + Telegram notify ──────────────────
+0 7 * * *  cd /opt/nft_project && .venv/bin/python scripts/daily_ml_run.py          >> /var/log/nft_ml/daily_ml_run.log 2>&1
+
+# ── Optional: run walk-forward CV weekly (Sunday at 08:00) for model audit ───
+# 0 8 * * 0  cd /opt/nft_project && .venv/bin/python scripts/train_ml_model.py --cv-splits 5 >> /var/log/nft_ml/train_ml.log 2>&1

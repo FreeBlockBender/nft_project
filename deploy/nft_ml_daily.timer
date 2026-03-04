@@ -1,0 +1,12 @@
+[Unit]
+Description=Trigger NFT ML daily run at 07:00 UTC (after nightly data import)
+
+[Timer]
+# Run every day at 07:00 UTC
+# Assumes data import scripts finish by ~06:30 UTC
+OnCalendar=*-*-* 07:00:00
+AccuracySec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target
