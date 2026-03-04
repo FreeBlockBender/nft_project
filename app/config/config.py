@@ -32,5 +32,13 @@ def load_config():
         "ALLOWED_TELEGRAM_IDS": os.getenv("ALLOWED_TELEGRAM_IDS"),
         "MNEMONIC": os.getenv("MNEMONIC"),  # Farcaster mnemonic
         "GROK_API_KEY": os.getenv("GROK_API_KEY"),
-        "GROK_API_ENDPOINT": os.getenv("GROK_API_ENDPOINT", "https://api.x.ai/v1")
+        "GROK_API_ENDPOINT": os.getenv("GROK_API_ENDPOINT", "https://api.x.ai/v1"),
+        # ML model settings
+        "ML_HORIZON":        os.getenv("ML_HORIZON",        "14"),
+        "ML_THRESHOLD":      os.getenv("ML_THRESHOLD",      "0.10"),
+        "ML_MIN_CONFIDENCE": os.getenv("ML_MIN_CONFIDENCE", "0.60"),
+        "ML_TOP_N":          os.getenv("ML_TOP_N",          "15"),
+        "ML_LABEL":          os.getenv("ML_LABEL",          "binary"),
+        "ML_MIN_DAYS":       os.getenv("ML_MIN_DAYS",       "60"),
+        "ML_MODEL_PATH":     os.getenv("ML_MODEL_PATH",     "data/ml_model.pkl"),
     }
