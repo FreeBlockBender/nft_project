@@ -71,27 +71,61 @@ def _load_price_data(conn: sqlite3.Connection, since_date: str = None) -> pd.Dat
         Used in prediction-only (low-RAM) mode to avoid loading full history.
         Minimum recommended window: 280 calendar days (covers MA200 + buffer).
     """
-    where = f"WHERE latest_floor_date >= '{since_date}'" if since_date else ""
+    date_filter = f"AND h.latest_floor_date >= '{since_date}'" if since_date else ""
     df = pd.read_sql_query(
         f"""
+        -- For each unique slug, keep only the (collection_identifier, chain) pair
+        -- with the most historical rows.  This deduplicates collections that were
+        -- re-ingested under a different collection_identifier (same slug = same NFT
+        -- project), halving the apparent collection count from ~2800 to ~1400.
+        WITH counts AS (
+            SELECT
+                slug,
+                collection_identifier,
+                chain,
+                COUNT(*) AS cnt
+            FROM historical_nft_data
+            GROUP BY slug, collection_identifier, chain
+        ),
+        canonical AS (
+            SELECT
+                slug,
+                collection_identifier,
+                chain
+            FROM (
+                SELECT
+                    slug,
+                    collection_identifier,
+                    chain,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY slug
+                        ORDER BY cnt DESC, collection_identifier ASC
+                    ) AS rn
+                FROM counts
+            )
+            WHERE rn = 1
+        )
         SELECT
-            collection_identifier,
-            slug,
-            chain,
-            latest_floor_date           AS date,
-            floor_native,
-            floor_usd,
-            sale_count_24h,
-            sale_volume_native_24h,
-            highest_sale_native_24h,
-            lowest_sale_native_24h,
-            listed_count,
-            unique_owners,
-            total_supply,
-            ranking
-        FROM historical_nft_data
-        {where}
-        ORDER BY collection_identifier, chain, latest_floor_date ASC
+            h.collection_identifier,
+            h.slug,
+            h.chain,
+            h.latest_floor_date           AS date,
+            h.floor_native,
+            h.floor_usd,
+            h.sale_count_24h,
+            h.sale_volume_native_24h,
+            h.highest_sale_native_24h,
+            h.lowest_sale_native_24h,
+            h.listed_count,
+            h.unique_owners,
+            h.total_supply,
+            h.ranking
+        FROM historical_nft_data h
+        INNER JOIN canonical c
+            ON  c.collection_identifier = h.collection_identifier
+            AND c.chain                 = h.chain
+        WHERE 1=1 {date_filter}
+        ORDER BY h.collection_identifier, h.chain, h.latest_floor_date ASC
         """,
         conn,
     )
@@ -384,7 +418,44 @@ def _merge_x_sentiment(df: pd.DataFrame, xsent_df: pd.DataFrame) -> pd.DataFrame
     return merged
 
 
-def _merge_fear_greed(df: pd.DataFrame, fg_df: pd.DataFrame) -> pd.DataFrame:
+def _merge_x_sentiment_asof(df: pd.DataFrame, xsent_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    As-of x_sentiment merge for predict-only mode (df has 1 row per collection).
+
+    For each (collection_identifier, chain) row in df, picks the most recent
+    x_sentiment entry whose date is <= the row's price date.  No ffill needed
+    because we directly select the latest available value.
+    """
+    xcols = ["xsent_score", "xsent_engagement", "xsent_volume"]
+    if xsent_df.empty:
+        for col in xcols:
+            df[col] = np.nan
+        return df
+
+    xsent_renamed = xsent_df.rename(columns={
+        "sentiment_score":       "xsent_score",
+        "community_engagement":  "xsent_engagement",
+        "volume_activity":       "xsent_volume",
+    })
+
+    # For every (collection_identifier, chain) get the row with the latest date
+    # up to the max price date in df (safe since df already holds only the
+    # "today" row per collection).
+    ref_date = df["date"].max()
+    latest = (
+        xsent_renamed[xsent_renamed["date"] <= ref_date]
+        .sort_values("date")
+        .groupby(["collection_identifier", "chain"])
+        .last()
+        .reset_index()
+    )
+
+    merged = df.merge(
+        latest[["collection_identifier", "chain"] + xcols],
+        on=["collection_identifier", "chain"],
+        how="left",
+    )
+    return merged
     """Left-join Fear & Greed features; forward-fill gaps up to 7 days."""
     if fg_df.empty:
         df["fear_greed_value"] = np.nan
@@ -569,6 +640,13 @@ def build_feature_dataframe(
         if feat.empty:
             skipped += 1
             continue
+        # ── Predict-only RAM optimisation (inner loop) ───────────
+        # Keep only the last date row immediately so the `results` list
+        # accumulates O(N_collections) rows instead of O(280 × N_collections).
+        # Rolling features have already been computed over the full window;
+        # subsequent market-feature merges only need the final row.
+        if lookback_days is not None:
+            feat = feat.iloc[[-1]]
         results.append(feat)
 
     if not results:
@@ -578,11 +656,25 @@ def build_feature_dataframe(
     logger.info("Concatenating %d collections (skipped: %d) ...", len(results), skipped)
     df = pd.concat(results, ignore_index=True)
 
+    if lookback_days is not None:
+        logger.info(
+            "Predict-only mode: %d rows (1 per collection) — merging market features ...",
+            len(df),
+        )
+
     logger.info("Merging market-wide hype features ...")
     df = _merge_market_features(df, hype_df)
 
     logger.info("Merging X sentiment features ...")
-    df = _merge_x_sentiment(df, xsent_df)
+    if lookback_days is not None:
+        # In predict-only mode df has 1 row per collection.
+        # The normal _merge_x_sentiment relies on groupby-transform ffill across
+        # many rows per collection — a no-op on single-row groups (all NaN).
+        # Use an as-of lookup instead: latest sentiment entry per collection
+        # with date <= today's price date.
+        df = _merge_x_sentiment_asof(df, xsent_df)
+    else:
+        df = _merge_x_sentiment(df, xsent_df)
 
     logger.info("Merging Fear & Greed features ...")
     df = _merge_fear_greed(df, fg_df)
