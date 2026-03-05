@@ -456,6 +456,9 @@ def _merge_x_sentiment_asof(df: pd.DataFrame, xsent_df: pd.DataFrame) -> pd.Data
         how="left",
     )
     return merged
+
+
+def _merge_fear_greed(df: pd.DataFrame, fg_df: pd.DataFrame) -> pd.DataFrame:
     """Left-join Fear & Greed features; forward-fill gaps up to 7 days."""
     if fg_df.empty:
         df["fear_greed_value"] = np.nan
