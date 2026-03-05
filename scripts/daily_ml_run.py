@@ -73,8 +73,13 @@ def _get_ml_config() -> dict:
     }
 
 
+def _esc(text: str) -> str:
+    """Escape HTML special characters for Telegram HTML parse mode."""
+    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def _format_telegram_message(signals, ml_cfg: dict) -> str:
-    """Format signal results as a Markdown Telegram message."""
+    """Format signal results as an HTML Telegram message."""
     import numpy as np
     label_col   = "signal"
     min_conf    = ml_cfg["min_confidence"]
@@ -91,38 +96,40 @@ def _format_telegram_message(signals, ml_cfg: dict) -> str:
     n_hold = (signals[label_col] == "HOLD").sum()
     n_sell = (signals[label_col] == "SELL").sum() if "SELL" in signals[label_col].values else 0
 
+    sell_part = f" | SELL: {n_sell}" if n_sell > 0 else ""
     lines = [
-        f"*NFT ML Signals* | {today_str}",
+        f"<b>NFT ML Signals</b> | {today_str}",
         f"Horizon: {ml_cfg['horizon']}d | Threshold: {ml_cfg['threshold']:.0%}",
-        f"Total collections: {total} | BUY: {n_buy} | HOLD: {n_hold}" +
-        (f" | SELL: {n_sell}" if n_sell > 0 else ""),
-        f"\n*Top BUY signals (conf \u2265 {min_conf:.0%}): {len(buy_signals)}*\n",
+        f"Total: {total} | BUY: {n_buy} | HOLD: {n_hold}{sell_part}",
+        f"",
+        f"<b>Top BUY signals (conf \u2265 {min_conf:.0%}): {len(buy_signals)}</b>",
+        f"",
     ]
 
     if buy_signals.empty:
-        lines.append("_No high-confidence BUY signals today._")
+        lines.append("<i>No high-confidence BUY signals today.</i>")
     else:
         for rank, (_, row) in enumerate(buy_signals.iterrows(), start=1):
-            cid       = str(row.get("collection_identifier", "N/A"))[:35]
-            chain     = str(row.get("chain", ""))
+            cid       = _esc(str(row.get("collection_identifier", "N/A"))[:35])
+            chain     = _esc(str(row.get("chain", "")))
             fn        = row.get("floor_native")
             fusd      = row.get("floor_usd")
             conf      = row.get("confidence", 0)
             price     = (f"{fn:.4f}" if fn else "N/A") + (f" (${fusd:,.0f})" if fusd else "")
-            top_feat  = row.get("top_features") or ""
-            lines.append(f"{rank}\\. `{cid}` \\({chain}\\): {price} | conf: {conf:.1%}")
+            top_feat  = _esc(row.get("top_features") or "")
+            lines.append(f"{rank}. <code>{cid}</code> ({chain}): {_esc(price)} | conf: {conf:.1%}")
             if top_feat:
-                lines.append(f"   _\u21b3 {top_feat}_")
+                lines.append(f"   <i>\u21b3 {top_feat}</i>")
 
     return "\n".join(lines)
 
 
 async def _notify(message: str, chat_id: str):
-    await send_telegram_message(message, chat_id, parse_mode="MarkdownV2")
+    await send_telegram_message(message, chat_id, parse_mode="HTML")
 
 
 async def _notify_error(message: str, chat_id: str):
-    await send_telegram_message(chat_id, message)
+    await send_telegram_message(message, chat_id)
 
 
 # ─────────────────────────────────────────────
