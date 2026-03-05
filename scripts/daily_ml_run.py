@@ -41,6 +41,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.config.config import load_config
 from app.config.logging_config import setup_logging
+from app.database.database import create_tables_if_not_exist
 from app.database.db_connection import get_db_connection
 from app.ml.feature_pipeline import build_feature_dataframe
 from app.ml.label_generator import add_labels
@@ -92,36 +93,97 @@ def _format_telegram_message(signals, ml_cfg: dict) -> str:
     ].head(top_n)
 
     total = len(signals)
-    n_buy = (signals[label_col] == "BUY").sum()
+    n_buy  = (signals[label_col] == "BUY").sum()
     n_hold = (signals[label_col] == "HOLD").sum()
     n_sell = (signals[label_col] == "SELL").sum() if "SELL" in signals[label_col].values else 0
 
     sell_part = f" | SELL: {n_sell}" if n_sell > 0 else ""
     lines = [
-        f"<b>NFT ML Signals</b> | {today_str}",
+        f"\U0001f916 <b>NFT ML Signals</b> | {today_str}",
         f"Horizon: {ml_cfg['horizon']}d | Threshold: {ml_cfg['threshold']:.0%}",
-        f"Total: {total} | BUY: {n_buy} | HOLD: {n_hold}{sell_part}",
-        f"",
-        f"<b>Top BUY signals (conf \u2265 {min_conf:.0%}): {len(buy_signals)}</b>",
-        f"",
+        f"Tracked: {total} | BUY: {n_buy} | HOLD: {n_hold}{sell_part}",
+        "",
+        f"<b>\U0001f4c8 Top BUY signals (conf \u2265 {min_conf:.0%})</b>  [{len(buy_signals)} found]",
+        "",
     ]
 
     if buy_signals.empty:
         lines.append("<i>No high-confidence BUY signals today.</i>")
     else:
         for rank, (_, row) in enumerate(buy_signals.iterrows(), start=1):
+            slug      = _esc(str(row.get("slug") or "")[:40])
             cid       = _esc(str(row.get("collection_identifier", "N/A"))[:35])
             chain     = _esc(str(row.get("chain", "")))
             fn        = row.get("floor_native")
             fusd      = row.get("floor_usd")
             conf      = row.get("confidence", 0)
-            price     = (f"{fn:.4f}" if fn else "N/A") + (f" (${fusd:,.0f})" if fusd else "")
             top_feat  = _esc(row.get("top_features") or "")
-            lines.append(f"{rank}. <code>{cid}</code> ({chain}): {_esc(price)} | conf: {conf:.1%}")
+
+            # Primary display name: slug if available, else fall back to cid
+            display   = slug if slug else cid
+            price_native = f"{fn:.4f}" if fn else "N/A"
+            price_usd    = f"${fusd:,.0f}" if fusd else ""
+            price_str    = f"{price_native}  {price_usd}".strip() if price_usd else price_native
+
+            lines.append(
+                f"{rank}. <b>{display}</b>  <i>({chain})</i>"
+            )
+            lines.append(
+                f"   Floor: <code>{_esc(price_str)}</code>  |  conf: <b>{conf:.1%}</b>"
+            )
+            if slug and cid and slug != cid:
+                lines.append(f"   <i>id: {cid}</i>")
             if top_feat:
-                lines.append(f"   <i>\u21b3 {top_feat}</i>")
+                lines.append(f"   \u21b3 <i>{top_feat}</i>")
+            lines.append("")
 
     return "\n".join(lines)
+
+
+def _save_signals_to_db(signals, ml_cfg: dict) -> int:
+    """Persist all generated signals to the ml_signals table for backtesting.
+
+    Returns the number of rows inserted/replaced.
+    """
+    from datetime import timezone
+    run_date   = datetime.utcnow().strftime("%Y-%m-%d")
+    created_at = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
+    as_of_date = signals["date"].max().strftime("%Y-%m-%d") if "date" in signals.columns else run_date
+
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        rows = []
+        for _, row in signals.iterrows():
+            rows.append((
+                run_date,
+                as_of_date,
+                str(row.get("collection_identifier", "")),
+                str(row.get("slug") or ""),
+                str(row.get("chain", "")),
+                row.get("floor_native"),
+                row.get("floor_usd"),
+                str(row.get("signal", "")),
+                float(row.get("confidence", 0)),
+                str(row.get("top_features") or ""),
+                int(ml_cfg["horizon"]),
+                float(ml_cfg["threshold"]),
+                created_at,
+            ))
+        cur.executemany(
+            """
+            INSERT OR REPLACE INTO ml_signals
+                (run_date, as_of_date, collection_identifier, slug, chain,
+                 floor_native, floor_usd, signal, confidence, top_features,
+                 horizon_days, threshold, created_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """,
+            rows,
+        )
+        conn.commit()
+        return len(rows)
+    finally:
+        conn.close()
 
 
 async def _notify(message: str, chat_id: str):
@@ -235,7 +297,7 @@ def main():
                 asyncio.run(_notify_error(msg, chat_id))
             sys.exit(1)
 
-    # ── Step 3: Generate signals ─────────────────────────────────
+    # ── Step 3: Generate signals & save to DB ───────────────────
     try:
         logging.info("[3/4] Generating signals ...")
         signals = predict_signals(model, df, label_col=label_col)
@@ -252,6 +314,12 @@ def main():
             "[3/4] Signals generated: %d collections | BUY=%d | high-conf BUY=%d",
             len(signals), n_buy, n_conf,
         )
+
+        # Persist every signal to ml_signals table for future backtesting
+        create_tables_if_not_exist()  # ensure ml_signals table exists
+        saved = _save_signals_to_db(signals, ml_cfg)
+        logging.info("[3/4] Saved %d signal rows to ml_signals table.", saved)
+
     except Exception as e:
         msg = f"[ML daily run] FAILED at prediction:\n{e}"
         logging.error(msg)

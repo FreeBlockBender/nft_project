@@ -80,34 +80,54 @@ def _format_signal_table(signals_df, top_n: int, min_confidence: float) -> str:
     return "\n".join(lines)
 
 
+def _esc_html(text: str) -> str:
+    return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def _format_telegram_message(signals_df, top_n: int, min_confidence: float) -> str:
-    """Format a concise Telegram message with top BUY signals."""
+    """Format a structured HTML Telegram message with top BUY signals."""
     buy_signals = signals_df[
         (signals_df["signal"] == "BUY") &
         (signals_df["confidence"] >= min_confidence)
     ].head(top_n)
 
     as_of = signals_df["date"].max().date() if "date" in signals_df.columns else "N/A"
+    total = len(signals_df)
+    n_buy = (signals_df["signal"] == "BUY").sum()
+    n_hold = (signals_df["signal"] == "HOLD").sum() if "HOLD" in signals_df["signal"].values else 0
+
     lines = [
-        f"*NFT ML Buy Signals* | {as_of}",
-        f"Found: {len(buy_signals)} high-confidence BUY signals\n",
+        f"\U0001f916 <b>NFT ML Signals</b> | {as_of}",
+        f"Tracked: {total} | BUY: {n_buy} | HOLD: {n_hold}",
+        "",
+        f"<b>\U0001f4c8 Top BUY signals (conf \u2265 {min_confidence:.0%})</b>  [{len(buy_signals)} found]",
+        "",
     ]
 
-    for rank, (_, row) in enumerate(buy_signals.iterrows(), start=1):
-        cid = row.get("collection_identifier", "N/A")
-        chain = row.get("chain", "")
-        floor_native = row.get("floor_native")
-        floor_usd = row.get("floor_usd")
-        conf = row.get("confidence", 0)
+    if buy_signals.empty:
+        lines.append("<i>No high-confidence BUY signals today.</i>")
+    else:
+        for rank, (_, row) in enumerate(buy_signals.iterrows(), start=1):
+            slug     = _esc_html(str(row.get("slug") or "")[:40])
+            cid      = _esc_html(str(row.get("collection_identifier", "N/A"))[:35])
+            chain    = _esc_html(str(row.get("chain", "")))
+            fn       = row.get("floor_native")
+            fusd     = row.get("floor_usd")
+            conf     = row.get("confidence", 0)
+            top_feat = _esc_html(row.get("top_features") or "")
 
-        price_str = ""
-        if floor_native:
-            price_str += f"{floor_native:.4f}"
-        if floor_usd:
-            price_str += f" (${floor_usd:,.2f})"
+            display      = slug if slug else cid
+            price_native = f"{fn:.4f}" if fn else "N/A"
+            price_usd    = f"${fusd:,.0f}" if fusd else ""
+            price_str    = f"{price_native}  {price_usd}".strip() if price_usd else price_native
 
-        line = f"{rank}. `{cid}` ({chain}) | {price_str} | conf: {conf:.1%}"
-        lines.append(line)
+            lines.append(f"{rank}. <b>{display}</b>  <i>({chain})</i>")
+            lines.append(f"   Floor: <code>{_esc_html(price_str)}</code>  |  conf: <b>{conf:.1%}</b>")
+            if slug and cid and slug != cid:
+                lines.append(f"   <i>id: {cid}</i>")
+            if top_feat:
+                lines.append(f"   \u21b3 <i>{top_feat}</i>")
+            lines.append("")
 
     return "\n".join(lines)
 
@@ -159,7 +179,7 @@ def main():
         msg = _format_telegram_message(signals, top_n=args.top_n, min_confidence=args.min_confidence)
         chat_id = get_monitoring_chat_id()
         logging.info("Sending signals to Telegram chat %s ...", chat_id)
-        asyncio.run(send_telegram_message(chat_id, msg, parse_mode="Markdown"))
+        asyncio.run(send_telegram_message(msg, chat_id, parse_mode="HTML"))
         logging.info("Telegram message sent.")
 
     logging.info("Prediction complete.")
