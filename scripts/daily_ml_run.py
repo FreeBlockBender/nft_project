@@ -118,7 +118,7 @@ def _format_telegram_message(signals, ml_cfg: dict) -> str:
 
 
 async def _notify(message: str, chat_id: str):
-    await send_telegram_message(chat_id, message, parse_mode="MarkdownV2")
+    await send_telegram_message(message, chat_id, parse_mode="MarkdownV2")
 
 
 async def _notify_error(message: str, chat_id: str):

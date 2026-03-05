@@ -10,7 +10,7 @@ def _get_client():
         _client = httpx.AsyncClient(timeout=30.0)
     return _client
 
-async def send_telegram_message(message: str, chat_id: str):
+async def send_telegram_message(message: str, chat_id: str, parse_mode: str = "HTML"):
     """
     Invia un messaggio Telegram in modo asincrono.
     """
@@ -23,8 +23,8 @@ async def send_telegram_message(message: str, chat_id: str):
     payload = {
         "chat_id": chat_id,
         "text": message,
-        "parse_mode": "HTML",                  # ← you probably want this
-        "disable_web_page_preview": True       # ← cleaner messages
+        "parse_mode": parse_mode,
+        "disable_web_page_preview": True
     }
 
     client = _get_client()
