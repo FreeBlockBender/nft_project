@@ -85,7 +85,9 @@ Format your response as JSON with these exact keys:
 def fetch_collections_needing_update(top_n: int = 100) -> list:
     """
     Fetch top N collections that need X sentiment update (not updated in last 30 days).
-    
+    Deduplicates by slug+chain so collections with multiple contract identifiers are
+    counted as one, using the best (lowest) ranking entry as the canonical identifier.
+
     Args:
         top_n: Top N rankings to consider (default 100)
         
@@ -94,54 +96,81 @@ def fetch_collections_needing_update(top_n: int = 100) -> list:
     """
     conn = get_db_connection()
     cursor = conn.cursor()
-    
-    # Get top 100 collections from latest data
+
+    # One row per slug+chain: pick the collection_identifier with the best (lowest) ranking.
+    # Deduplicates both historical_nft_data (multiple contracts per slug) and
+    # nft_collections (duplicate rows per slug+chain).
     cursor.execute("""
-    SELECT DISTINCT 
-        h.collection_identifier,
-        h.slug,
-        h.chain,
-        nc.x_page,
-        h.ranking
-    FROM historical_nft_data h
-    LEFT JOIN nft_collections nc ON h.slug = nc.slug AND h.chain = nc.chain
-    WHERE h.ranking < ? AND h.ranking IS NOT NULL
-    AND nc.x_page IS NOT NULL AND nc.x_page != ''
-    ORDER BY h.ranking ASC
+    WITH latest_dates AS (
+        SELECT collection_identifier, chain, MAX(latest_floor_date) AS max_date
+        FROM historical_nft_data
+        GROUP BY collection_identifier, chain
+    ),
+    latest_data AS (
+        SELECT h.collection_identifier, h.slug, h.chain, h.ranking
+        FROM historical_nft_data h
+        JOIN latest_dates ld
+            ON h.collection_identifier = ld.collection_identifier
+            AND h.chain = ld.chain
+            AND h.latest_floor_date = ld.max_date
+        WHERE h.ranking <= ? AND h.ranking IS NOT NULL
+    ),
+    best_per_slug AS (
+        SELECT slug, chain, MIN(ranking) AS best_ranking
+        FROM latest_data
+        GROUP BY slug, chain
+    ),
+    canonical AS (
+        SELECT ld.collection_identifier, ld.slug, ld.chain, ld.ranking
+        FROM latest_data ld
+        JOIN best_per_slug bp
+            ON ld.slug = bp.slug AND ld.chain = bp.chain AND ld.ranking = bp.best_ranking
+        GROUP BY ld.slug, ld.chain
+    ),
+    unique_nc AS (
+        SELECT slug, chain, MAX(x_page) AS x_page
+        FROM nft_collections
+        WHERE x_page IS NOT NULL AND x_page != ''
+        GROUP BY slug, chain
+    )
+    SELECT c.collection_identifier, c.slug, c.chain, nc.x_page, c.ranking
+    FROM canonical c
+    JOIN unique_nc nc ON c.slug = nc.slug AND c.chain = nc.chain
+    ORDER BY c.ranking ASC
     LIMIT ?
     """, (top_n, top_n))
-    
+
     top_collections = cursor.fetchall()
     conn.close()
-    
+
     if not top_collections:
         return []
-    
-    # Filter by monthly update schedule
+
+    # Filter by monthly update schedule — check by slug+chain so all contract
+    # variants of the same collection share a single "last updated" date.
     collections_to_update = []
     conn = get_db_connection()
     cursor = conn.cursor()
-    
+
     now = datetime.utcnow()
     thirty_days_ago = (now - timedelta(days=30)).isoformat()
-    
+
     for collection_id, slug, chain, x_page, ranking in top_collections:
-        # Check if we have recent sentiment data
         cursor.execute("""
-        SELECT date FROM nft_x_sentiment 
-        WHERE collection_identifier = ? AND chain = ?
+        SELECT date FROM nft_x_sentiment
+        WHERE slug = ? AND chain = ?
         ORDER BY date DESC LIMIT 1
-        """, (collection_id, chain))
-        
+        """, (slug, chain))
+
         result = cursor.fetchone()
         last_update_date = result[0] if result else None
-        
-        # Add to update list if no data or older than 30 days
+
         if not last_update_date or last_update_date < thirty_days_ago:
             collections_to_update.append((collection_id, slug, chain, x_page, ranking))
-    
+
     conn.close()
     return collections_to_update
+
 
 
 async def call_grok_api(prompt: str, config: dict) -> dict:
@@ -321,10 +350,6 @@ async def process_collections(max_per_run: int = 3):
         
         if not collections:
             logger.info("No collections need sentiment update.")
-            await send_telegram_message(
-                "🔍 X Sentiment Analysis: No collections need updates (all within 30-day window).",
-                config.get("TELEGRAM_MONITORING_CHAT_ID")
-            )
             return
         
         logger.info(f"Found {len(collections)} collections needing updates, processing top {max_per_run}...")

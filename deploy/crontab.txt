@@ -33,8 +33,10 @@ PATH=/opt/nft_project/.venv/bin:/usr/local/bin:/usr/bin:/bin
 35 6 * * * cd /opt/nft_project && .venv/bin/python scripts/detect_current_golden_crosses_50_200.py  >> /var/log/nft_ml/golden_cross.log 2>&1
 40 6 * * * cd /opt/nft_project && .venv/bin/python scripts/notify_today_golden_crosses.py           >> /var/log/nft_ml/golden_cross.log 2>&1
 
-# ── ML: daily retrain + signal prediction + Telegram notify ──────────────────
-0 7 * * *  cd /opt/nft_project && .venv/bin/python scripts/daily_ml_run.py          >> /var/log/nft_ml/daily_ml_run.log 2>&1
+# ── ML: daily signal prediction + Telegram notify ────────────────────────────
+# Model is trained locally and uploaded via deploy/upload_model.sh.
+# --skip-train loads only the last 280 days (~250 MB RAM vs ~1.8 GB for full retrain).
+0 7 * * *  cd /opt/nft_project && .venv/bin/python scripts/daily_ml_run.py --skip-train >> /var/log/nft_ml/daily_ml_run.log 2>&1
 
 # ── Optional: run walk-forward CV weekly (Sunday at 08:00) for model audit ───
 # 0 8 * * 0  cd /opt/nft_project && .venv/bin/python scripts/train_ml_model.py --cv-splits 5 >> /var/log/nft_ml/train_ml.log 2>&1
