@@ -2,6 +2,8 @@
 Entrypoint principale del bot Telegram: importa e registra tutti i command handler.
 """
 
+import logging
+
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, ConversationHandler
 )
@@ -23,6 +25,8 @@ from app.telegram.utils.error_handler import error_handler
 
 # Carica il token dal modulo di configurazione
 from app.config.config import load_config
+
+logger = logging.getLogger(__name__)
 
 def main():
     config = load_config()
@@ -49,7 +53,7 @@ def main():
     application.add_handler(pagination_callback_handler)
     application.add_error_handler(error_handler)
 
-    print("Bot Telegram avviato. In ascolto di comandi...")
+    logger.info("Bot Telegram avviato. In ascolto di comandi...")
     application.run_polling()
 
 if __name__ == "__main__":
