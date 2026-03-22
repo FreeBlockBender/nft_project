@@ -23,13 +23,13 @@ async def start_chart_native(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.user_data["command"] = "nft_chart_native"
     logger.debug(f"[nft_chart_native] Showing time range selection keyboard to user {user_id}")
     keyboard = [
-        [InlineKeyboardButton("7D", callback_data="7")],
-        [InlineKeyboardButton("1M", callback_data="30")],
-        [InlineKeyboardButton("3M", callback_data="90")],
-        [InlineKeyboardButton("6M", callback_data="180")],
-        [InlineKeyboardButton("1Y", callback_data="365")],
-        [InlineKeyboardButton("2Y", callback_data="730")],
-        [InlineKeyboardButton("3Y", callback_data="1095")],
+        [InlineKeyboardButton("7D", callback_data="ncn:7")],
+        [InlineKeyboardButton("1M", callback_data="ncn:30")],
+        [InlineKeyboardButton("3M", callback_data="ncn:90")],
+        [InlineKeyboardButton("6M", callback_data="ncn:180")],
+        [InlineKeyboardButton("1Y", callback_data="ncn:365")],
+        [InlineKeyboardButton("2Y", callback_data="ncn:730")],
+        [InlineKeyboardButton("3Y", callback_data="ncn:1095")],
     ]
     await update.message.reply_text(
         "Choose the time range for the chart display (native):", 
@@ -39,7 +39,7 @@ async def start_chart_native(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def select_days_native(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
-    days = int(query.data)
+    days = int(query.data.split(":", 1)[1])
     user_id = update.effective_user.id
     logger.debug(f"[nft_chart_native] User {user_id} selected {days} days")
     await query.answer()
@@ -131,7 +131,7 @@ async def enter_slug_native(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 nft_chart_native_handler = ConversationHandler(
     entry_points=[CommandHandler("nft_chart_native", start_chart_native)],
     states={
-        SELECT_DAYS: [CallbackQueryHandler(select_days_native, pattern=r"^(7|30|90|180|365|730|1095)$")],
+        SELECT_DAYS: [CallbackQueryHandler(select_days_native, pattern=r"^ncn:(7|30|90|180|365|730|1095)$")],
         ENTER_SLUG: [MessageHandler(filters.TEXT & ~filters.COMMAND, enter_slug_native)],
     },
     fallbacks=[],

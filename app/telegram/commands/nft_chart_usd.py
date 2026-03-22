@@ -23,13 +23,13 @@ async def start_chart_usd(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     context.user_data["command"] = "nft_chart_usd"
     logger.debug(f"[nft_chart_usd] Showing time range selection keyboard to user {user_id}")
     keyboard = [
-        [InlineKeyboardButton("7D", callback_data="7")],
-        [InlineKeyboardButton("1M", callback_data="30")],
-        [InlineKeyboardButton("3M", callback_data="90")],
-        [InlineKeyboardButton("6M", callback_data="180")],
-        [InlineKeyboardButton("1Y", callback_data="365")],
-        [InlineKeyboardButton("2Y", callback_data="730")],
-        [InlineKeyboardButton("3Y", callback_data="1095")],
+        [InlineKeyboardButton("7D", callback_data="ncu:7")],
+        [InlineKeyboardButton("1M", callback_data="ncu:30")],
+        [InlineKeyboardButton("3M", callback_data="ncu:90")],
+        [InlineKeyboardButton("6M", callback_data="ncu:180")],
+        [InlineKeyboardButton("1Y", callback_data="ncu:365")],
+        [InlineKeyboardButton("2Y", callback_data="ncu:730")],
+        [InlineKeyboardButton("3Y", callback_data="ncu:1095")],
     ]
     await update.message.reply_text(
         "Choose the time range for the chart display (USD):", 
@@ -39,7 +39,7 @@ async def start_chart_usd(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def select_days_usd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
-    days = int(query.data)
+    days = int(query.data.split(":", 1)[1])
     user_id = update.effective_user.id
     logger.debug(f"[nft_chart_usd] User {user_id} selected {days} days")
     await query.answer()
@@ -121,7 +121,7 @@ async def enter_slug_usd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 nft_chart_usd_handler = ConversationHandler(
     entry_points=[CommandHandler("nft_chart_usd", start_chart_usd)],
     states={
-        SELECT_DAYS_USD: [CallbackQueryHandler(select_days_usd, pattern=r"^(7|30|90|180|365|730|1095)$")],
+        SELECT_DAYS_USD: [CallbackQueryHandler(select_days_usd, pattern=r"^ncu:(7|30|90|180|365|730|1095)$")],
         ENTER_SLUG_USD: [MessageHandler(filters.TEXT & ~filters.COMMAND, enter_slug_usd)],
     },
     fallbacks=[],
