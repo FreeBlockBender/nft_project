@@ -61,9 +61,18 @@ async def enter_slug_native(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        logger.debug(f"[nft_chart_native] Querying nft_collections for collection_identifier: {slug}")
+        logger.debug(f"[nft_chart_native] Querying nft_collections by slug: {slug}")
         
-        cur.execute("SELECT collection_identifier, chain FROM nft_collections WHERE collection_identifier = ?", (slug,))
+        cur.execute(
+            "SELECT c.collection_identifier, c.chain, c.chain_currency_symbol "
+            "FROM nft_collections c "
+            "LEFT JOIN historical_nft_data h ON h.collection_identifier = c.collection_identifier "
+            "WHERE c.slug = ? "
+            "GROUP BY c.collection_identifier, c.chain, c.chain_currency_symbol "
+            "ORDER BY MAX(h.latest_floor_date) DESC "
+            "LIMIT 1",
+            (slug,)
+        )
         row = cur.fetchone()
         
         if not row:
@@ -72,12 +81,12 @@ async def enter_slug_native(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             conn.close()
             return ConversationHandler.END
         
-        collection_identifier, chain = row
+        collection_identifier, chain, chain_currency_symbol = row
         logger.debug(f"[nft_chart_native] Found collection: {collection_identifier}, chain: {chain}")
 
         logger.debug(f"[nft_chart_native] Querying historical_nft_data for {collection_identifier}, last {days} days")
         cur.execute(
-            "SELECT latest_floor_date, floor_price_native FROM historical_nft_data "
+            "SELECT latest_floor_date, floor_native FROM historical_nft_data "
             "WHERE collection_identifier = ? AND latest_floor_date >= date('now', ? || ' days') "
             "ORDER BY latest_floor_date ASC",
             (collection_identifier, -days)
@@ -97,7 +106,7 @@ async def enter_slug_native(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             await update.message.reply_text(f"Warning: Only {len(data)} days of data available, less than the {days} days requested.")
 
         logger.debug(f"[nft_chart_native] Generating chart for {slug}")
-        chart = create_nft_chart(slug, data, "floor_price_native", chain, days)
+        chart = create_nft_chart(slug, data, "floor_native", chain, days, chain_currency_symbol=chain_currency_symbol)
         
         if not chart:
             logger.error(f"[nft_chart_native] Chart generation failed for {slug}")

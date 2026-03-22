@@ -19,7 +19,16 @@ async def ma_generic(update: Update, context: ContextTypes.DEFAULT_TYPE, floor_f
     
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT collection_identifier FROM nft_collections WHERE slug=?", (slug,))
+    cur.execute(
+        "SELECT c.collection_identifier "
+        "FROM nft_collections c "
+        "LEFT JOIN historical_nft_data h ON h.collection_identifier = c.collection_identifier "
+        "WHERE c.slug = ? "
+        "GROUP BY c.collection_identifier "
+        "ORDER BY MAX(h.latest_floor_date) DESC "
+        "LIMIT 1",
+        (slug,)
+    )
     row = cur.fetchone()
     if not row:
         await update.message.reply_text("Slug not found")
