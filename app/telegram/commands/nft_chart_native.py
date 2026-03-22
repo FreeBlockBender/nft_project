@@ -131,8 +131,8 @@ async def enter_slug_native(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 nft_chart_native_handler = ConversationHandler(
     entry_points=[CommandHandler("nft_chart_native", start_chart_native)],
     states={
-        SELECT_DAYS: [CallbackQueryHandler(select_days_native)],
+        SELECT_DAYS: [CallbackQueryHandler(select_days_native, pattern=r"^(7|30|90|180|365|730|1095)$")],
         ENTER_SLUG: [MessageHandler(filters.TEXT & ~filters.COMMAND, enter_slug_native)],
     },
-    fallbacks=[]
+    fallbacks=[],
 )

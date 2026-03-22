@@ -121,8 +121,8 @@ async def enter_slug_usd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 nft_chart_usd_handler = ConversationHandler(
     entry_points=[CommandHandler("nft_chart_usd", start_chart_usd)],
     states={
-        SELECT_DAYS_USD: [CallbackQueryHandler(select_days_usd)],
+        SELECT_DAYS_USD: [CallbackQueryHandler(select_days_usd, pattern=r"^(7|30|90|180|365|730|1095)$")],
         ENTER_SLUG_USD: [MessageHandler(filters.TEXT & ~filters.COMMAND, enter_slug_usd)],
     },
-    fallbacks=[]
+    fallbacks=[],
 )

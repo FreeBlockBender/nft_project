@@ -85,4 +85,4 @@ async def pagination_callback(update, context):
     keyboard = build_pagination_keyboard(command, query_value, page, total_pages)
     await update.callback_query.edit_message_text(text, reply_markup=keyboard)
 
-pagination_callback_handler = CallbackQueryHandler(pagination_callback)
+pagination_callback_handler = CallbackQueryHandler(pagination_callback, pattern=r"^[^|]+\|[^|]+\|\d+$")
