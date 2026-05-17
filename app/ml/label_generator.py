@@ -53,45 +53,43 @@ def add_labels(
     """
     df = df.sort_values(["collection_identifier", "chain", "date"]).copy()
 
-    def _calc_forward_return(grp: pd.DataFrame) -> pd.Series:
-        """
-        For each row in a single-collection group, look up the floor_native
-        exactly `horizon_days` calendar days later using the date index.
-        Uses date-based lookup (not integer shift) so gaps in the series
-        are handled correctly — we look for the closest available date
-        within horizon ± 2 days.
-        """
-        grp = grp.set_index("date")["floor_native"]
-        fwd_ret = pd.Series(np.nan, index=grp.index, name="forward_ret")
-
-        for dt in grp.index:
-            target_dt = dt + pd.Timedelta(days=horizon_days)
-            # Allow ±2 day tolerance for missing trading days
-            for offset in [0, 1, -1, 2, -2]:
-                candidate = target_dt + pd.Timedelta(days=offset)
-                if candidate in grp.index and pd.notna(grp[candidate]) and grp[dt] > 0:
-                    fwd_ret[dt] = (grp[candidate] - grp[dt]) / grp[dt]
-                    break
-
-        return fwd_ret.values  # return as array, aligned to grp's order
-
     logger.info(
         "Computing forward returns (horizon=%dd, buy>=%.0f%%, sell<=-%.0f%%) ...",
         horizon_days, buy_threshold * 100, sell_threshold * 100,
     )
 
-    fwd_rets = (
-        df.groupby(["collection_identifier", "chain"], sort=False)
-        .apply(_calc_forward_return)
+    # ── Vectorized forward-return via self-join (replaces per-row Python loop) ──
+    # Build a lookup table: (collection, chain, date) → floor_native
+    lookup = (
+        df[["collection_identifier", "chain", "date", "floor_native"]]
+        .drop_duplicates(["collection_identifier", "chain", "date"])
+        .rename(columns={"date": "_fdate", "floor_native": "_fprice"})
     )
 
-    # Flatten multi-index result back onto df
-    flat_fwd = []
-    for (cid, chain), arr in fwd_rets.items():
-        mask = (df["collection_identifier"] == cid) & (df["chain"] == chain)
-        flat_fwd.append(pd.Series(arr, index=df[mask].index))
+    forward_ret = pd.Series(np.nan, index=df.index, dtype=float)
 
-    df["forward_ret"] = pd.concat(flat_fwd).sort_index()
+    for offset in [0, 1, -1, 2, -2]:
+        still_nan_idx = forward_ret[forward_ret.isna()].index
+        if len(still_nan_idx) == 0:
+            break
+
+        sub = pd.DataFrame({
+            "_orig_idx": still_nan_idx,
+            "collection_identifier": df.loc[still_nan_idx, "collection_identifier"].values,
+            "chain":                 df.loc[still_nan_idx, "chain"].values,
+            "_fdate":                (df.loc[still_nan_idx, "date"] + pd.Timedelta(days=horizon_days + offset)).values,
+            "_cprice":               df.loc[still_nan_idx, "floor_native"].values,
+        })
+
+        merged = sub.merge(lookup, on=["collection_identifier", "chain", "_fdate"], how="left")
+        valid = merged["_fprice"].notna().values & (merged["_cprice"].values > 0)
+
+        orig_idx_valid = merged.loc[valid, "_orig_idx"].values
+        fp = merged.loc[valid, "_fprice"].values
+        cp = merged.loc[valid, "_cprice"].values
+        forward_ret.loc[orig_idx_valid] = (fp - cp) / cp
+
+    df["forward_ret"] = forward_ret
 
     # ── Build labels ─────────────────────────────────────────────
     def _classify(r):
