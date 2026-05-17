@@ -21,7 +21,6 @@ data/
 venv/
 
 # === File di script e log ===
-*.sh
 *.log
 
 /dbt_project

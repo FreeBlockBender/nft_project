@@ -96,6 +96,51 @@ New feature per misurare il "vibe" generale del mercato NFT usando l'API di Grok
 
 ---
 
+## 🖥️ Production Server
+
+| | |
+|---|---|
+| **Host** | `nft_project_server.chickenkiller.com` |
+| **Port** | `2222` |
+| **User** | `alessio9567` |
+| **Private key** | `C:\Users\Lenovo\.ssh\id_rsa` |
+| **Project path** | `/home/alessio9567/nft_project` |
+
+### Connect via SSH
+
+```bash
+ssh -p 2222 -i C:/Users/Lenovo/.ssh/id_rsa alessio9567@nft_project_server.chickenkiller.com
+```
+
+### Run GC pattern analysis remotely
+
+From local machine (Git Bash or WSL):
+
+```bash
+bash run_gc_analysis.sh                        # default: ranking <= 150, lookback 180d
+bash run_gc_analysis.sh --lookback 365         # extend lookback window
+bash run_gc_analysis.sh --ranking 50           # tighter ranking filter
+```
+
+Or manually over SSH:
+
+```bash
+ssh -p 2222 -i C:/Users/Lenovo/.ssh/id_rsa alessio9567@nft_project_server.chickenkiller.com \
+  "cd /home/alessio9567/nft_project && python scripts/analyze_gc_patterns.py --ranking 150"
+```
+
+### Schedule as daily cron (on the server)
+
+```bash
+# Connect to server, then:
+crontab -e
+
+# Add this line to run every day at 08:00 UTC:
+0 8 * * * cd /home/alessio9567/nft_project && python scripts/analyze_gc_patterns.py --ranking 150 >> logs/gc_analysis.log 2>&1
+```
+
+---
+
 ## 🔧 Git Workflow Guide
 
 All development must be done on the `develop` branch.  
